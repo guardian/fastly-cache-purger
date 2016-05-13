@@ -12,18 +12,23 @@ object Config {
 
   def load(): Config = {
     println("Loading config...")
-    val configFileKey = s"fastly-cache-purger.properties"
-    val configInputStream = s3.getObject("fastly-cache-purger-config", configFileKey).getObjectContent()
-    val configFile: Properties = new Properties()
-    Try(configFile.load(configInputStream)) orElse sys.error("Could not load config file from s3. This lambda will not run.")
+    val properties = loadProperties("fastly-cache-purger-config", "fastly-cache-purger.properties") getOrElse sys.error("Could not load config file from s3. This lambda will not run.")
 
-    val fastlyServiceId = getMandatoryConfig(configFile, "fastly.serviceId")
+    val fastlyServiceId = getMandatoryConfig(properties, "fastly.serviceId")
     println(s"Fastly service ID = $fastlyServiceId")
 
-    val fastlyApiKey = getMandatoryConfig(configFile, "fastly.apiKey")
+    val fastlyApiKey = getMandatoryConfig(properties, "fastly.apiKey")
     println(s"Fastly API key = ${fastlyApiKey.take(3)}...")
 
     Config(fastlyServiceId, fastlyApiKey)
+  }
+
+  private def loadProperties(bucket: String, key: String): Try[Properties] = {
+    val inputStream = s3.getObject(bucket, key).getObjectContent()
+    val properties: Properties = new Properties()
+    val result = Try(properties.load(inputStream)).map(_ => properties)
+    inputStream.close()
+    result
   }
 
   private def getMandatoryConfig(config: Properties, key: String) =
