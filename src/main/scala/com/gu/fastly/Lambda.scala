@@ -42,8 +42,8 @@ class Lambda {
     RequestBody.create(MediaType.parse("application/json; charset=utf-8"), "")
 
   private sealed trait PurgeType
-  private object Soft extends PurgeType
-  private object Hard extends PurgeType
+  private object Soft extends PurgeType { override def toString = "soft" }
+  private object Hard extends PurgeType { override def toString = "hard" }
 
   /**
    * Send a hard purge request to Fastly API.
@@ -66,7 +66,7 @@ class Lambda {
     }).build()
 
     val response = httpClient.newCall(request).execute()
-    println(s"Sent ${purgeType.getClass.getSimpleName} purge request for content with ID [$contentId]. Response from Fastly API: [${response.code}] [${response.body.string}]")
+    println(s"Sent $purgeType purge request for content with ID [$contentId]. Response from Fastly API: [${response.code}] [${response.body.string}]")
 
     val purged = response.code == 200
     purged
