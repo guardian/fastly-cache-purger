@@ -23,8 +23,10 @@ class Lambda {
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Delete) =>
           sendPurgeRequest(event.payloadId)
+        case (ItemType.Content, EventType.Update) =>
+          sendSoftPurgeRequest(event.payloadId)
         case other =>
-          // for now we only send purges for content takedowns, so ignore any other events
+          // for now we only send purges for content, so ignore any other events
           false
       }
     }
@@ -42,6 +44,35 @@ class Lambda {
    * @return whether a piece of content was purged or not
    */
   private def sendPurgeRequest(contentId: String): Boolean = {
+    val request = basicPurgeRequest(contentId).build()
+
+    val response = httpClient.newCall(request).execute()
+    println(s"Sent purge request for content with ID [$contentId]. Response from Fastly API: [${response.code}] [${response.body.string}]")
+
+    val purged = response.code == 200
+    purged
+  }
+
+  /**
+   * Send a soft purge request to Fastly API.
+   *
+   * See [[https://docs.fastly.com/guides/purging/soft-purges Fastly soft purging]].
+   *
+   * @return whether a piece of content was purged or not
+   */
+  private def sendSoftPurgeRequest(contentId: String): Boolean = {
+    val request = basicPurgeRequest(contentId)
+      .header("Fastly-Soft-Purge", "1")
+      .build()
+
+    val response = httpClient.newCall(request).execute()
+    println(s"Sent soft purge request for content with ID [$contentId]. Response from Fastly API: [${response.code}] [${response.body.string}]")
+
+    val purged = response.code == 200
+    purged
+  }
+
+  private def basicPurgeRequest(contentId: String): Request.Builder = {
     val contentPath = s"/$contentId"
     val surrogateKey = DigestUtils.md5Hex(contentPath)
     val url = s"https://api.fastly.com/service/${config.fastlyServiceId}/purge/$surrogateKey"
@@ -50,12 +81,6 @@ class Lambda {
       .url(url)
       .header("Fastly-Key", config.fastlyApiKey)
       .post(EmptyJsonBody)
-      .build()
-    val response = httpClient.newCall(request).execute()
-    println(s"Sent purge request for content with ID [$contentId]. Response from Fastly API: [${response.code}] [${response.body.string}]")
-
-    val purged = response.code == 200
-    purged
+    request
   }
-
 }
