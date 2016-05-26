@@ -12,12 +12,7 @@ libraryDependencies ++= Seq(
   "com.squareup.okhttp3" % "okhttp" % "3.2.0",
   "org.apache.thrift" % "libthrift" % "0.9.1" force(),
   "com.twitter" %% "scrooge-core" % "4.6.0",
-
-  /*
-  Note: Need to be careful not to upgrade this to anything newer than the version Crier is using.
-  We need to publish Crier's Thrift file as a jar asap to resolve this situation.
-  */
-  "com.gu" % "content-api-models" % "8.3"
+  "com.gu" % "content-api-models" % "8.16"
 )
 
 scroogeThriftDependencies in Compile := Seq("content-api-models", "story-packages-model-thrift", "content-atom-model-thrift")
