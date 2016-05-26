@@ -6,7 +6,8 @@ typedef string RemovedContent
 
 enum EventType {
     Update = 1,
-    Delete = 2
+    Delete = 2,
+    RetrievableUpdate = 3
 }
 
 enum ItemType {
