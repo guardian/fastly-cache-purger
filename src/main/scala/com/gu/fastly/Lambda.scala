@@ -88,7 +88,7 @@ class Lambda {
   private def sendAmpPingRequest(contentId: String, purgeType: PurgeType): Boolean = {
     val contentPath = s"/$contentId"
 
-    val url = s"https://amp-theguardian-com.cdn.ampproject.org/c/s/amp.theguardian.com${contentPath}"
+    val url = s"https://amp-theguardian-com.cdn.ampproject.org/update-ping/c/s/amp.theguardian.com${contentPath}"
 
     val request = new Request.Builder()
       .url(url)
