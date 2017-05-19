@@ -22,11 +22,11 @@ class Lambda {
     CrierEventProcessor.process(userRecords.asScala) { event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Delete) =>
-          sendPurgeRequest(event.payloadId, Hard)
+          sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard)
         case (ItemType.Content, EventType.Update) =>
-          sendPurgeRequest(event.payloadId, Soft)
+          sendFastlyPurgeRequest(event.payloadId, Soft)
         case (ItemType.Content, EventType.RetrievableUpdate) =>
-          sendPurgeRequest(event.payloadId, Soft)
+          sendFastlyPurgeRequest(event.payloadId, Soft)
 
         case other =>
           // for now we only send purges for content, so ignore any other events
@@ -45,12 +45,19 @@ class Lambda {
   private object Soft extends PurgeType { override def toString = "soft" }
   private object Hard extends PurgeType { override def toString = "hard" }
 
+  private def sendFastlyPurgeRequestAndAmpPingRequest(contentId: String, purgeType: PurgeType): Boolean = {
+    if (sendFastlyPurgeRequest(contentId, purgeType))
+      sendAmpPingRequest(contentId)
+    else
+      false
+  }
+
   /**
    * Send a hard purge request to Fastly API.
    *
    * @return whether a piece of content was purged or not
    */
-  private def sendPurgeRequest(contentId: String, purgeType: PurgeType): Boolean = {
+  private def sendFastlyPurgeRequest(contentId: String, purgeType: PurgeType): Boolean = {
     val contentPath = s"/$contentId"
     val surrogateKey = DigestUtils.md5Hex(contentPath)
     val url = s"https://api.fastly.com/service/${config.fastlyServiceId}/purge/$surrogateKey"
@@ -71,4 +78,27 @@ class Lambda {
     val purged = response.code == 200
     purged
   }
+
+  /**
+   * Send a ping request to Google AMP to refresh the cache.
+   * See https://developers.google.com/amp/cache/update-ping
+   *
+   * @return whether the request was successfully processed by the server
+   */
+  private def sendAmpPingRequest(contentId: String, purgeType: PurgeType): Boolean = {
+    val contentPath = s"/$contentId"
+
+    val url = s"https://amp-theguardian-com.cdn.ampproject.org/update-ping/c/s/amp.theguardian.com${contentPath}"
+
+    val request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+
+    val response = httpClient.newCall(request).execute()
+    println(s"Sent ping request for content with ID [$contentId]. Response from Google AMP CDN: [${response.code}] [${response.body.string}]")
+
+    response.code == 204
+  }
+
 }

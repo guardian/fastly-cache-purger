@@ -1,6 +1,6 @@
 organization := "com.gu"
 description := "Lambda for purging Fastly cache based on Crier events"
-scalaVersion := "2.11.8"
+scalaVersion := "2.11.11"
 name := "fastly-cache-purger"
 scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
@@ -13,14 +13,10 @@ libraryDependencies ++= Seq(
   "org.apache.thrift" % "libthrift" % "0.9.1" force(),
   "com.twitter" %% "scrooge-core" % "4.6.0",
 
-  /*
-  Note: Need to be careful not to upgrade this to anything newer than the version Crier is using.
-  We need to publish Crier's Thrift file as a jar asap to resolve this situation.
-  */
-  "com.gu" % "content-api-models" % "8.3"
+  "com.gu" % "content-api-models" % "11.15"
 )
 
-scroogeThriftDependencies in Compile := Seq("content-api-models", "story-packages-model-thrift", "content-atom-model-thrift")
+scroogeThriftDependencies in Compile := Seq("content-api-models", "story-packages-model-thrift", "content-atom-model-thrift", "content-entity-thrift", "story-model-thrift")
 
 scroogeThriftSources in Compile ++= {
   (scroogeUnpackDeps in Compile).value.flatMap { dir => (dir ** "*.thrift").get }
