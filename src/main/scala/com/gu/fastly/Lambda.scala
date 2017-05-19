@@ -85,7 +85,7 @@ class Lambda {
    *
    * @return whether the request was successfully processed by the server
    */
-  private def sendAmpPingRequest(contentId: String, purgeType: PurgeType): Boolean = {
+  private def sendAmpPingRequest(contentId: String): Boolean = {
     val contentPath = s"/$contentId"
 
     val url = s"https://amp-theguardian-com.cdn.ampproject.org/update-ping/c/s/amp.theguardian.com${contentPath}"
