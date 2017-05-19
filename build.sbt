@@ -21,3 +21,10 @@ scroogeThriftDependencies in Compile := Seq("content-api-models", "story-package
 scroogeThriftSources in Compile ++= {
   (scroogeUnpackDeps in Compile).value.flatMap { dir => (dir ** "*.thrift").get }
 }
+
+ mergeStrategy in assembly <<= (mergeStrategy in assembly) { old =>
+      {
+        case f if f.endsWith(".thrift") => MergeStrategy.discard
+        case x => old(x)
+      }
+  }
