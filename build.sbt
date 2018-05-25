@@ -12,19 +12,21 @@ libraryDependencies ++= Seq(
   "com.squareup.okhttp3" % "okhttp" % "3.2.0",
   "org.apache.thrift" % "libthrift" % "0.9.1" force(),
   "com.twitter" %% "scrooge-core" % "4.18.0",
-
   "com.gu" %% "content-api-models" % "12.1"
 )
 
-scroogeThriftDependencies in Compile := Seq("content-api-models", "story-packages-model-thrift", "content-atom-model-thrift", "content-entity-thrift", "story-model-thrift")
+enablePlugins(RiffRaffArtifact, JavaAppPackaging)
+
+scroogeThriftDependencies in Compile := Seq("content-api-models_2.12", "story-packages-model-thrift", "content-atom-model-thrift", "content-entity-thrift", "story-model-thrift")
 
 scroogeThriftSources in Compile ++= {
   (scroogeUnpackDeps in Compile).value.flatMap { dir => (dir ** "*.thrift").get }
 }
 
- mergeStrategy in assembly <<= (mergeStrategy in assembly) { old =>
-      {
-        case f if f.endsWith(".thrift") => MergeStrategy.discard
-        case x => old(x)
-      }
-  }
+topLevelDirectory in Universal := None
+packageName in Universal := normalizedName.value
+
+riffRaffPackageType := (packageBin in Universal).value
+riffRaffUploadArtifactBucket := Option("riffraff-artifact")
+riffRaffUploadManifestBucket := Option("riffraff-builds")
+riffRaffManifestProjectName := s"Content Platforms::${name.value}"

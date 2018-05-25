@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: Lambda for purging fastly cache in response to CAPI updates
+
+Parameters:
+  Stack:
+    Description: Stack name
+    Type: String
+    Default: content-api-fastly-cache-purger
+  App:
+    Description: Application name
+    Type: String
+    Default: fastly-cache-purger
+  Stage:
+    Description: Stage name
+    Type: String
+    AllowedValues:
+      - CODE
+      - PROD
+    Default: CODE
+  DeployBucket:
+    Description: Bucket where RiffRaff uploads artifacts on deploy
+    Type: String
+    Default: content-api-dist
+  KinesisStream:
+    Description: Name of the crier kinesis stream
+    Type: String
+
+Resources:
+  Lambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${App}-${Stage}
+      Description: Fastly cache purger
+      Runtime: java8
+      Handler: com.gu.fastly.Lambda::handle
+      MemorySize: 512
+      Timeout: 15
+      Events:
+        KinesisEvent:
+          Type: EventSourceMapping
+          Properties:
+            EventSourceArn:
+              !Sub arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${KinesisStream}
+      CodeUri:
+        Bucket: !Ref DeployBucket
+        Key: !Sub ${Stack}/${Stage}/${App}/${App}.zip
+      Policies:
+        - AWSLambdaBasicExecutionRole  # Managed Policy that includes CloudWatch log permissions
+        - Statement:
+            Effect: Allow
+            Action:
+              - s3:PutObject
+            Resource: !Sub "arn:aws:s3:::${OutputBucket}/${Stage}/*"
