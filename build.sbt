@@ -1,6 +1,6 @@
 organization := "com.gu"
 description := "Lambda for purging Fastly cache based on Crier events"
-scalaVersion := "2.11.11"
+scalaVersion := "2.12.6"
 name := "fastly-cache-purger"
 scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
@@ -11,9 +11,9 @@ libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-java-sdk-s3" % "1.10.72",
   "com.squareup.okhttp3" % "okhttp" % "3.2.0",
   "org.apache.thrift" % "libthrift" % "0.9.1" force(),
-  "com.twitter" %% "scrooge-core" % "4.6.0",
+  "com.twitter" %% "scrooge-core" % "4.18.0",
 
-  "com.gu" % "content-api-models" % "11.15"
+  "com.gu" %% "content-api-models" % "12.1"
 )
 
 scroogeThriftDependencies in Compile := Seq("content-api-models", "story-packages-model-thrift", "content-atom-model-thrift", "content-entity-thrift", "story-model-thrift")
