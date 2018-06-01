@@ -1,14 +1,16 @@
 package com.gu.fastly
 
 import java.util.Properties
-import com.amazonaws.services.s3.AmazonS3Client
+
+import com.amazonaws.services.s3.AmazonS3ClientBuilder
+
 import scala.util.Try
 
 case class Config(fastlyServiceId: String, fastlyApiKey: String)
 
 object Config {
 
-  val s3 = new AmazonS3Client()
+  val s3 = AmazonS3ClientBuilder.defaultClient
 
   def load(): Config = {
     println("Loading config...")
