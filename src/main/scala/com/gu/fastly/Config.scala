@@ -13,14 +13,11 @@ object Config {
   val s3 = AmazonS3ClientBuilder.defaultClient
 
   def load(): Config = {
-    println("Loading config...")
     val properties = loadProperties("fastly-cache-purger-config", "fastly-cache-purger.properties") getOrElse sys.error("Could not load config file from s3. This lambda will not run.")
 
     val fastlyServiceId = getMandatoryConfig(properties, "fastly.serviceId")
-    println(s"Fastly service ID = $fastlyServiceId")
 
     val fastlyApiKey = getMandatoryConfig(properties, "fastly.apiKey")
-    println(s"Fastly API key = ${fastlyApiKey.take(3)}...")
 
     Config(fastlyServiceId, fastlyApiKey)
   }
