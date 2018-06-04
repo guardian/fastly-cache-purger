@@ -1,0 +1,14 @@
+stacks:
+  - content-api-fastly-cache-purger
+
+regions:
+  - eu-west-1
+
+deployments:
+  fastly-cache-purger:
+    type: aws-lambda
+    parameters:
+      bucket: content-api-dist
+      functionNames: [fastly-cache-purger-]
+      fileName: fastly-cache-purger.zip
+      prefixStack: false
