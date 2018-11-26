@@ -1,6 +1,6 @@
 organization := "com.gu"
 description := "Lambda for purging Fastly cache based on Crier events"
-scalaVersion := "2.12.6"
+scalaVersion := "2.12.7"
 name := "fastly-cache-purger"
 scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
