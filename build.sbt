@@ -12,7 +12,8 @@ libraryDependencies ++= Seq(
   "com.squareup.okhttp3" % "okhttp" % "3.2.0",
   "org.apache.thrift" % "libthrift" % "0.9.1" force(),
   "com.twitter" %% "scrooge-core" % "4.18.0",
-  "com.gu" %% "content-api-models" % "12.1"
+  "com.gu" %% "content-api-models" % "12.1",
+  "com.gu" %% "thrift-serializer" % "2.1.1"
 )
 
 enablePlugins(RiffRaffArtifact, JavaAppPackaging)
