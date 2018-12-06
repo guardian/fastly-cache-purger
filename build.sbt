@@ -13,8 +13,10 @@ libraryDependencies ++= Seq(
   "org.apache.thrift" % "libthrift" % "0.9.1" force(),
   "com.twitter" %% "scrooge-core" % "4.18.0",
   "com.gu" %% "content-api-models" % "12.1",
-  "com.gu" %% "thrift-serializer" % "2.1.1"
+  "com.gu" %% "thrift-serializer" % "3.0.0"
 )
+
+dependencyOverrides += "org.apache.thrift" % "libthrift" % "0.9.1"
 
 enablePlugins(RiffRaffArtifact, JavaAppPackaging)
 

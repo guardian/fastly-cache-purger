@@ -3,13 +3,9 @@ package com.gu.fastly
 import com.amazonaws.services.kinesis.model.Record
 import com.gu.crier.model.event.v1.Event
 import com.gu.thrift.serializer.ThriftDeserializer
-import scala.concurrent.duration.Duration
-import scala.concurrent.Await
 import scala.util.Try
 
-object CrierEventProcessor extends ThriftDeserializer[Event] {
-
-  val codec = Event
+object CrierEventProcessor {
 
   def process(records: Seq[Record])(purge: Event => Boolean) = {
     val processingResults: Iterable[Boolean] = records.flatMap { record =>
@@ -27,9 +23,7 @@ object CrierEventProcessor extends ThriftDeserializer[Event] {
   }
 
   private def eventFromRecord(record: Record): Try[Event] = {
-    val buffer = record.getData.array
-
-    Try(Await.result(deserialize(buffer, false) fallbackTo deserialize(buffer, true), Duration.Inf))
+    ThriftDeserializer.deserialize(record.getData.array)(Event)
   }
 
 }
