@@ -20,6 +20,7 @@ object CrierEventProcessor {
     }
     val purgedCount: Int = processingResults.count(_ == true)
     println(s"Successfully purged $purgedCount pieces of content")
+    purgedCount
   }
 
   private def eventFromRecord(record: Record): Try[Event] = {
