@@ -22,6 +22,10 @@ Parameters:
     Description: Bucket where RiffRaff uploads artifacts on deploy
     Type: String
     Default: content-api-dist
+  ConfigBucket:
+    Description: Bucket where app settings are stored
+    Type: String
+    Default: fastly-cache-purger-config
   KinesisStream:
     Description: Name of the crier kinesis stream
     Type: String
@@ -50,5 +54,5 @@ Resources:
         - Statement:
             Effect: Allow
             Action:
-              - s3:PutObject
-            Resource: !Sub "arn:aws:s3:::${OutputBucket}/${Stage}/*"
+              - s3:GetObject
+            Resource: !Sub "arn:aws:s3:::${ConfigBucket}/${Stage}/*"
