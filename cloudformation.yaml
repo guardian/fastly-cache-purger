@@ -34,7 +34,7 @@ Resources:
       Description: Fastly cache purger
       Runtime: java8
       Handler: com.gu.fastly.Lambda::handle
-      MemorySize: 512
+      MemorySize: 1024
       Timeout: 15
       Events:
         KinesisEvent:
