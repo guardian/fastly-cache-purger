@@ -22,12 +22,12 @@ class Lambda {
     CrierEventProcessor.process(userRecords.asScala) { event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Delete) =>
-          sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard)
+          sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId)
         case (ItemType.Content, EventType.Update) =>
-          sendFastlyPurgeRequest(event.payloadId, Soft)
+          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId)
           sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyApiNextgenServiceId)
         case (ItemType.Content, EventType.RetrievableUpdate) =>
-          sendFastlyPurgeRequest(event.payloadId, Soft)
+          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId)
 
         case other =>
           // for now we only send purges for content, so ignore any other events
@@ -46,8 +46,8 @@ class Lambda {
   private object Soft extends PurgeType { override def toString = "soft" }
   private object Hard extends PurgeType { override def toString = "hard" }
 
-  private def sendFastlyPurgeRequestAndAmpPingRequest(contentId: String, purgeType: PurgeType): Boolean = {
-    if (sendFastlyPurgeRequest(contentId, purgeType))
+  private def sendFastlyPurgeRequestAndAmpPingRequest(contentId: String, purgeType: PurgeType, serviceId: String): Boolean = {
+    if (sendFastlyPurgeRequest(contentId, purgeType, serviceId))
       sendAmpPingRequest(contentId)
     else
       false
@@ -58,7 +58,7 @@ class Lambda {
    *
    * @return whether a piece of content was purged or not
    */
-  private def sendFastlyPurgeRequest(contentId: String, purgeType: PurgeType, serviceId: String = config.fastlyDotcomServiceId): Boolean = {
+  private def sendFastlyPurgeRequest(contentId: String, purgeType: PurgeType, serviceId: String): Boolean = {
     val contentPath = s"/$contentId"
     val surrogateKey = DigestUtils.md5Hex(contentPath)
     val url = s"https://api.fastly.com/service/$serviceId/purge/$surrogateKey"
