@@ -25,6 +25,7 @@ class Lambda {
           sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard)
         case (ItemType.Content, EventType.Update) =>
           sendFastlyPurgeRequest(event.payloadId, Soft)
+          sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyApiNextgenServiceId)
         case (ItemType.Content, EventType.RetrievableUpdate) =>
           sendFastlyPurgeRequest(event.payloadId, Soft)
 
@@ -57,10 +58,10 @@ class Lambda {
    *
    * @return whether a piece of content was purged or not
    */
-  private def sendFastlyPurgeRequest(contentId: String, purgeType: PurgeType): Boolean = {
+  private def sendFastlyPurgeRequest(contentId: String, purgeType: PurgeType, serviceId: String = config.fastlyDotcomServiceId): Boolean = {
     val contentPath = s"/$contentId"
     val surrogateKey = DigestUtils.md5Hex(contentPath)
-    val url = s"https://api.fastly.com/service/${config.fastlyServiceId}/purge/$surrogateKey"
+    val url = s"https://api.fastly.com/service/$serviceId/purge/$surrogateKey"
 
     val requestBuilder = new Request.Builder()
       .url(url)
