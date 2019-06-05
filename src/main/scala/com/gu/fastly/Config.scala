@@ -6,7 +6,7 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder
 
 import scala.util.Try
 
-case class Config(fastlyDotcomServiceId: String, fastlyApiKey: String, fastlyApiNextgenServiceId: String)
+case class Config(fastlyDotcomServiceId: String, fastlyApiNextgenServiceId: String, fastlyApiKey: String)
 
 object Config {
 
@@ -21,7 +21,7 @@ object Config {
 
     val fastlyGuardianAppsServiceId = getMandatoryConfig(properties, "fastly.apiNextgen.serviceId")
 
-    Config(fastlyServiceId, fastlyApiKey, fastlyGuardianAppsServiceId)
+    Config(fastlyServiceId, fastlyGuardianAppsServiceId, fastlyApiKey)
   }
 
   private def loadProperties(bucket: String, key: String): Try[Properties] = {
