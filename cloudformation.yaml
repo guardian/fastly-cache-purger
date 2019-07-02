@@ -1,5 +1,4 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Transform: 'AWS::Serverless-2016-10-31'
 Description: Lambda for purging fastly cache in response to CAPI updates
 
 Parameters:
@@ -11,7 +10,7 @@ Parameters:
     Description: Application name
     Type: String
     Default: fastly-cache-purger
-  Stage:
+  Stage: 
     Description: Stage name
     Type: String
     AllowedValues:
@@ -22,33 +21,61 @@ Parameters:
     Description: Bucket where RiffRaff uploads artifacts on deploy
     Type: String
     Default: content-api-dist
+  ConfigBucket:
+    Description: Bucket where app settings are stored
+    Type: String
+    Default: fastly-cache-purger-config
   KinesisStream:
     Description: Name of the crier kinesis stream
     Type: String
 
 Resources:
   Lambda:
-    Type: AWS::Serverless::Function
+    Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub ${App}-${Stage}
+      FunctionName: !Sub "${App}-${Stage}"
       Description: Fastly cache purger
       Runtime: java8
       Handler: com.gu.fastly.Lambda::handle
-      MemorySize: 1024
+      MemorySize: 512
       Timeout: 15
-      Events:
-        KinesisEvent:
-          Type: EventSourceMapping
-          Properties:
-            EventSourceArn:
-              !Sub arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${KinesisStream}
-      CodeUri:
-        Bucket: !Ref DeployBucket
-        Key: !Sub ${Stack}/${Stage}/${App}/${App}.zip
-      Policies:
-        - AWSLambdaBasicExecutionRole  # Managed Policy that includes CloudWatch log permissions
-        - Statement:
+      Role: !GetAtt LambdaRole.Arn
+      Tags:
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: App
+          Value: !Ref App
+      Code:
+        S3Bucket: !Ref DeployBucket
+        S3Key: !Sub ${Stack}/${Stage}/${App}/${App}.zip
+  LambdaKinesisEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 100
+      EventSourceArn: !Sub "arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${KinesisStream}"
+      FunctionName: !Ref Lambda
+      StartingPosition: TRIM_HORIZON
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaKinesisExecutionRole
+      Policies: 
+        - PolicyName: ReadConfigFromBucket
+          PolicyDocument:
+            Statement:
+              Action:
+                - s3:GetObject
+                - s3:ListBucket
+              Resource: !Sub arn:aws:s3:::${ConfigBucket}/*
+              Effect: Allow
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
             Effect: Allow
-            Action:
-              - s3:PutObject
-            Resource: !Sub "arn:aws:s3:::${OutputBucket}/${Stage}/*"
+            Principal:
+              Service: lambda.amazonaws.com
