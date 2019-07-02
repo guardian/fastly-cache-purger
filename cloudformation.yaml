@@ -17,9 +17,6 @@ Parameters:
       - CODE
       - PROD
     Default: CODE
-  ConfigBucket:
-    Description: Bucket with the file containing fastly config
-    Type: String
   DeployBucket:
     Description: Bucket where RiffRaff uploads artifacts on deploy
     Type: String
@@ -36,16 +33,23 @@ Resources:
   Lambda:
     Type: AWS::Lambda::Function
     Properties:
+      FunctionName: !Sub "${App}-${Stage}"
+      Description: Fastly cache purger
+      Runtime: java8
+      Handler: com.gu.fastly.Lambda::handle
+      MemorySize: 512
+      Timeout: 15
+      Role: !GetAtt LambdaRole.Arn
+      Tags:
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: App
+          Value: !Ref App
       Code:
-        FunctionName: !Sub "${App}-${Stage}"
-        Description: Fastly cache purger
-        Runtime: java8
-        Handler: com.gu.fastly.Lambda::handle
-        MemorySize: 512
-        Timeout: 15
         S3Bucket: !Ref DeployBucket
         S3Key: !Sub ${Stack}/${Stage}/${App}/${App}.zip
-        Role: !GetAtt ["LambdaRole","Arn"]
   LambdaKinesisEvent:
     Type: AWS::Lambda::EventSourceMapping
     Properties:
