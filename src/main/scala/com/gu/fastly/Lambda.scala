@@ -22,12 +22,14 @@ class Lambda {
     CrierEventProcessor.process(userRecords.asScala) { event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Delete) =>
-          sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId)
+          sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, DotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
         case (ItemType.Content, EventType.Update) =>
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId)
-          sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyApiNextgenServiceId)
+          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, DotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
+          sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyApiNextgenServiceId, DotcomSurrogateKey(s"${event.payloadId}.json"), config.fastlyDotcomApiKey)
+          sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyMapiServiceId, MapiSurrogateKey(), config.fastlyMapiApiKey)
         case (ItemType.Content, EventType.RetrievableUpdate) =>
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId)
+          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, DotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
+          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, MapiSurrogateKey(), config.fastlyMapiApiKey)
 
         case other =>
           // for now we only send purges for content, so ignore any other events
@@ -46,40 +48,47 @@ class Lambda {
   private object Soft extends PurgeType { override def toString = "soft" }
   private object Hard extends PurgeType { override def toString = "hard" }
 
-  private def sendFastlyPurgeRequestAndAmpPingRequest(contentId: String, purgeType: PurgeType, serviceId: String): Boolean = {
-    if (sendFastlyPurgeRequest(contentId, purgeType, serviceId))
+  private sealed trait SurrogateType { def toSurrogateKey: String }
+  case class DotcomSurrogateKey(contentId: String) extends SurrogateType {
+    override def toSurrogateKey: String = {
+      val contentPath = s"/$contentId"
+      val dotcomSurrogateKey = DigestUtils.md5Hex(contentPath)
+      dotcomSurrogateKey
+    }
+  }
+  case class MapiSurrogateKey() extends SurrogateType { override def toSurrogateKey = "Item" }
+
+  private def sendFastlyPurgeRequestAndAmpPingRequest(contentId: String, purgeType: PurgeType, serviceId: String, surrogateKey: SurrogateType, fastlyApiKey: String): Boolean = {
+    if (sendFastlyPurgeRequest(contentId, purgeType, serviceId, surrogateKey, fastlyApiKey))
       sendAmpPingRequest(contentId)
     else
       false
   }
 
-  /**
-   * Send a hard purge request to Fastly API.
-   *
-   * @return whether a piece of content was purged or not
-   */
-  private def sendFastlyPurgeRequest(contentId: String, purgeType: PurgeType, serviceId: String): Boolean = {
-    val contentPath = s"/$contentId"
-    val surrogateKey = DigestUtils.md5Hex(contentPath)
-    val url = s"https://api.fastly.com/service/$serviceId/purge/$surrogateKey"
+    /**
+     * Send a hard purge request to Fastly API.
+     *
+     * @return whether a piece of content was purged or not
+     */
+    def sendFastlyPurgeRequest(contentId: String, purgeType: PurgeType, serviceId: String, surrogateKey: SurrogateType, fastlyApiKey: String): Boolean = {
+      val url = s"https://api.fastly.com/service/$serviceId/purge/$surrogateKey"
 
-    val requestBuilder = new Request.Builder()
-      .url(url)
-      .header("Fastly-Key", config.fastlyApiKey)
-      .post(EmptyJsonBody)
+      val requestBuilder = new Request.Builder()
+        .url(url)
+        .header("Fastly-Key", fastlyApiKey)
+        .post(EmptyJsonBody)
 
-    val request = (purgeType match {
-      case Soft => requestBuilder.header("Fastly-Soft-Purge", "1")
-      case _ => requestBuilder
-    }).build()
+      val request = (purgeType match {
+        case Soft => requestBuilder.header("Fastly-Soft-Purge", "1")
+        case _ => requestBuilder
+      }).build()
 
-    val response = httpClient.newCall(request).execute()
-    println(s"Sent $purgeType purge request for content with ID [$contentId]. Response from Fastly API: [${response.code}] [${response.body.string}]")
+      val response = httpClient.newCall(request).execute()
+      println(s"Sent $purgeType purge request for content with ID [$contentId]. Response from Fastly API: [${response.code}] [${response.body.string}]")
 
-    val purged = response.code == 200
-    purged
-  }
-
+      val purged = response.code == 200
+      purged
+    }
   /**
    * Send a ping request to Google AMP to refresh the cache.
    * See https://developers.google.com/amp/cache/update-ping

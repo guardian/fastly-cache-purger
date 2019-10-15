@@ -6,7 +6,7 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder
 
 import scala.util.Try
 
-case class Config(fastlyDotcomServiceId: String, fastlyApiNextgenServiceId: String, fastlyApiKey: String)
+case class Config(fastlyDotcomServiceId: String, fastlyMapiServiceId: String, fastlyApiNextgenServiceId: String, fastlyDotcomApiKey: String, fastlyMapiApiKey: String)
 
 object Config {
 
@@ -15,13 +15,17 @@ object Config {
   def load(): Config = {
     val properties = loadProperties("fastly-cache-purger-config", "fastly-cache-purger.properties") getOrElse sys.error("Could not load config file from s3. This lambda will not run.")
 
-    val fastlyServiceId = getMandatoryConfig(properties, "fastly.serviceId")
+    val fastlyDotcomServiceId = getMandatoryConfig(properties, "fastly.serviceId")
 
-    val fastlyApiKey = getMandatoryConfig(properties, "fastly.apiKey")
+    val fastlyDotcomApiKey = getMandatoryConfig(properties, "fastly.apiKey")
 
     val fastlyGuardianAppsServiceId = getMandatoryConfig(properties, "fastly.apiNextgen.serviceId")
 
-    Config(fastlyServiceId, fastlyGuardianAppsServiceId, fastlyApiKey)
+    val fastlyMapiServiceId = getMandatoryConfig(properties,"fastly.MapiServiceId")
+
+    val fastlyMapiApiKey = getMandatoryConfig(properties, "fastly.MapiApiKey")
+
+    Config(fastlyDotcomServiceId, fastlyMapiServiceId, fastlyGuardianAppsServiceId, fastlyDotcomApiKey, fastlyMapiApiKey)
   }
 
   private def loadProperties(bucket: String, key: String): Try[Properties] = {
