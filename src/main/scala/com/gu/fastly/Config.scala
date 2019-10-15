@@ -21,7 +21,7 @@ object Config {
 
     val fastlyGuardianAppsServiceId = getMandatoryConfig(properties, "fastly.apiNextgen.serviceId")
 
-    val fastlyMapiServiceId = getMandatoryConfig(properties,"fastly.MapiServiceId")
+    val fastlyMapiServiceId = getMandatoryConfig(properties, "fastly.MapiServiceId")
 
     val fastlyMapiApiKey = getMandatoryConfig(properties, "fastly.MapiApiKey")
 
