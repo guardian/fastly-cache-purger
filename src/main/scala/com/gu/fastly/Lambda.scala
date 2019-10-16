@@ -56,7 +56,7 @@ class Lambda {
       dotcomSurrogateKey
     }
   }
-  private case class MapiSurrogateKey(contentId: String) extends SurrogateType { override def toSurrogateKey = "Item" }
+  private case class MapiSurrogateKey(contentId: String) extends SurrogateType { override def toSurrogateKey = s"Item/$contentId" }
 
   private def sendFastlyPurgeRequestAndAmpPingRequest(contentId: String, purgeType: PurgeType, serviceId: String, surrogateKey: SurrogateType, fastlyApiKey: String): Boolean = {
     if (sendFastlyPurgeRequest(contentId, purgeType, serviceId, surrogateKey, fastlyApiKey))
@@ -84,7 +84,7 @@ class Lambda {
     }).build()
 
     val response = httpClient.newCall(request).execute()
-    println(s"Sent $purgeType purge request for content with ID [$contentId] and service with ID [$serviceId]. Response from Fastly API: [${response.code}] [${response.body.string}]")
+    println(s"Sent $purgeType purge request for content with ID [$contentId], service with ID [$serviceId] and surrogate key [$surrogateKey]. Response from Fastly API: [${response.code}] [${response.body.string}]")
 
     val purged = response.code == 200
     purged
