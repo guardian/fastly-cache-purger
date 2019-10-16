@@ -84,7 +84,7 @@ class Lambda {
     }).build()
 
     val response = httpClient.newCall(request).execute()
-    println(s"Sent $purgeType purge request for content with ID [$contentId]. Response from Fastly API: [${response.code}] [${response.body.string}]")
+    println(s"Sent $purgeType purge request for content with ID [$contentId] and service with ID [$serviceId]. Response from Fastly API: [${response.code}] [${response.body.string}]")
 
     val purged = response.code == 200
     purged
