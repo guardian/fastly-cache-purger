@@ -22,12 +22,14 @@ class Lambda {
     CrierEventProcessor.process(userRecords.asScala) { event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Delete) =>
-          sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId)
+          sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
         case (ItemType.Content, EventType.Update) =>
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId)
-          sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyApiNextgenServiceId)
+          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
+          sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(s"${event.payloadId}.json"), config.fastlyDotcomApiKey)
+          sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(s"${event.payloadId}.json"), config.fastlyMapiApiKey)
         case (ItemType.Content, EventType.RetrievableUpdate) =>
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId)
+          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
+          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
 
         case other =>
           // for now we only send purges for content, so ignore any other events
@@ -46,8 +48,16 @@ class Lambda {
   private object Soft extends PurgeType { override def toString = "soft" }
   private object Hard extends PurgeType { override def toString = "hard" }
 
-  private def sendFastlyPurgeRequestAndAmpPingRequest(contentId: String, purgeType: PurgeType, serviceId: String): Boolean = {
-    if (sendFastlyPurgeRequest(contentId, purgeType, serviceId))
+  def makeMapiSurrogateKey(contentId: String): String = s"Item/$contentId"
+
+  def makeDotcomSurrogateKey(contentId: String): String = {
+    val contentPath = s"/$contentId"
+    val dotcomSurrogateKey = DigestUtils.md5Hex(contentPath)
+    dotcomSurrogateKey
+  }
+
+  private def sendFastlyPurgeRequestAndAmpPingRequest(contentId: String, purgeType: PurgeType, serviceId: String, surrogateKey: String, fastlyApiKey: String): Boolean = {
+    if (sendFastlyPurgeRequest(contentId, purgeType, serviceId, surrogateKey, fastlyApiKey))
       sendAmpPingRequest(contentId)
     else
       false
@@ -58,14 +68,12 @@ class Lambda {
    *
    * @return whether a piece of content was purged or not
    */
-  private def sendFastlyPurgeRequest(contentId: String, purgeType: PurgeType, serviceId: String): Boolean = {
-    val contentPath = s"/$contentId"
-    val surrogateKey = DigestUtils.md5Hex(contentPath)
+  def sendFastlyPurgeRequest(contentId: String, purgeType: PurgeType, serviceId: String, surrogateKey: String, fastlyApiKey: String): Boolean = {
     val url = s"https://api.fastly.com/service/$serviceId/purge/$surrogateKey"
 
     val requestBuilder = new Request.Builder()
       .url(url)
-      .header("Fastly-Key", config.fastlyApiKey)
+      .header("Fastly-Key", fastlyApiKey)
       .post(EmptyJsonBody)
 
     val request = (purgeType match {
@@ -74,12 +82,11 @@ class Lambda {
     }).build()
 
     val response = httpClient.newCall(request).execute()
-    println(s"Sent $purgeType purge request for content with ID [$contentId]. Response from Fastly API: [${response.code}] [${response.body.string}]")
+    println(s"Sent $purgeType purge request for content with ID [$contentId], service with ID [$serviceId] and surrogate key [$surrogateKey]. Response from Fastly API: [${response.code}] [${response.body.string}]")
 
     val purged = response.code == 200
     purged
   }
-
   /**
    * Send a ping request to Google AMP to refresh the cache.
    * See https://developers.google.com/amp/cache/update-ping
