@@ -13,7 +13,7 @@ class Lambda {
   private val config = Config.load()
   private val httpClient = new OkHttpClient()
 
-  def handle(event: KinesisEvent) {
+  def handle(event: KinesisEvent) = {
     val rawRecords: List[Record] = event.getRecords.asScala.map(_.getKinesis).toList
     val userRecords = UserRecord.deaggregate(rawRecords.asJava)
 
@@ -22,15 +22,17 @@ class Lambda {
     CrierEventProcessor.process(userRecords.asScala) { event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Delete) =>
-          if (sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)) Some(event) else None
+          sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
+          Some(event)
         case (ItemType.Content, EventType.Update) =>
-          if (sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)) Some(event) else None
-          if (sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(s"${event.payloadId}.json"), config.fastlyDotcomApiKey)) Some(event) else None
-          if (sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(s"${event.payloadId}.json"), config.fastlyMapiApiKey)) Some(event) else None
+          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
+          sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(s"${event.payloadId}.json"), config.fastlyDotcomApiKey)
+          sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(s"${event.payloadId}.json"), config.fastlyMapiApiKey)
+          Some(event)
         case (ItemType.Content, EventType.RetrievableUpdate) =>
-          if (sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)) Some(event) else None
-          if (sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)) Some(event) else None
-
+          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
+          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
+          Some(event)
         case other =>
           // for now we only send purges for content, so ignore any other events
           None
