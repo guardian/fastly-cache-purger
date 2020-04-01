@@ -3,6 +3,7 @@ package com.gu.fastly
 import java.util.Properties
 
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
+import com.amazonaws.regions.Regions
 
 import scala.util.Try
 

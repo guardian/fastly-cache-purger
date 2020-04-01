@@ -8,6 +8,7 @@ val Log4jVersion = "2.10.0"
 
 libraryDependencies ++= Seq(
   "com.amazonaws" % "amazon-kinesis-client" % "1.9.1",
+  "com.amazonaws" % "amazon-kinesis-producer" % "0.14.0",
   "com.amazonaws" % "aws-lambda-java-core" % "1.2.0",
   "com.amazonaws" % "aws-lambda-java-events" % "2.1.0",
   "com.amazonaws" % "aws-java-sdk-s3" % "1.11.339",

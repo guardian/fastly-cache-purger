@@ -1,25 +1,34 @@
 package com.gu.fastly
 
-import org.apache.commons.codec.digest.DigestUtils
+import java.util.concurrent.TimeUnit.MILLISECONDS
+
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
+import com.amazonaws.services.kinesis.producer.{ KinesisProducer, UserRecordResult }
+import com.amazonaws.services.lambda.runtime.Context
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
-import okhttp3._
 import com.gu.crier.model.event.v1._
+import okhttp3._
+import org.apache.commons.codec.digest.DigestUtils
+
 import scala.collection.JavaConverters._
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 class Lambda {
 
   private val config = Config.load()
   private val httpClient = new OkHttpClient()
 
-  def handle(event: KinesisEvent) {
+  val kinesisProducer = new KinesisProducer()
+
+  def handle(event: KinesisEvent, context: Context): Unit = {
     val rawRecords: List[Record] = event.getRecords.asScala.map(_.getKinesis).toList
-    val userRecords = UserRecord.deaggregate(rawRecords.asJava)
+    val userRecords = UserRecord.deaggregate(rawRecords.asJava).asScala
 
     println(s"Processing ${userRecords.size} records ...")
 
-    CrierEventProcessor.process(userRecords.asScala) { event =>
+    CrierEventProcessor.process(userRecords) { event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Delete) =>
           sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
@@ -36,6 +45,18 @@ class Lambda {
           false
       }
     }
+
+    val recordsAddedResult: Seq[UserRecordResult] = Await.result(
+      PurgedEventWriter.addRecords(rawRecords, kinesisProducer), Duration(context.getRemainingTimeInMillis, MILLISECONDS)
+    )
+
+    val recordsAddedCount = rawRecords.zip(recordsAddedResult).count {
+      case (record, recordRes) =>
+        if (!recordRes.isSuccessful) println(s"Failed to add record to stream: $record")
+        recordRes.isSuccessful
+    }
+
+    println(s"Put $recordsAddedCount onto fastly-cache-purger-events stream")
 
     println(s"Finished.")
   }

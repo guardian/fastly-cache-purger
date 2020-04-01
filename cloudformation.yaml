@@ -25,8 +25,11 @@ Parameters:
     Description: Bucket where app settings are stored
     Type: String
     Default: fastly-cache-purger-config
-  KinesisStream:
-    Description: Name of the crier kinesis stream
+  KinesisStreamRead:
+    Description: Name of the crier kinesis stream this lambda reads from
+    Type: String
+  KinesisStreamWrite:
+    Description: Name of the kinesis stream this lambda writes to
     Type: String
 
 Resources:
@@ -54,7 +57,7 @@ Resources:
     Type: AWS::Lambda::EventSourceMapping
     Properties:
       BatchSize: 100
-      EventSourceArn: !Sub "arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${KinesisStream}"
+      EventSourceArn: !Sub "arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${KinesisStreamRead}"
       FunctionName: !Ref Lambda
       StartingPosition: TRIM_HORIZON
   LambdaRole:
@@ -71,6 +74,14 @@ Resources:
                 - s3:GetObject
                 - s3:ListBucket
               Resource: !Sub arn:aws:s3:::${ConfigBucket}/*
+              Effect: Allow
+        - PolicyName: PutRecordsOnKinesisWriteStream
+          PolicyDocument:
+            Statement:
+              Action:
+                - kinesis:PutRecord
+                - kinesis:PutRecords
+              Resource: !Sub arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${KinesisStreamWrite}
               Effect: Allow
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
