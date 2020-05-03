@@ -4,6 +4,8 @@ import com.amazonaws.services.kinesis.model.Record
 import com.gu.crier.model.event.v1.{ Event, EventPayload, EventType, ItemType, RetrievableContent }
 import com.gu.thrift.serializer._
 import java.nio.ByteBuffer
+
+import com.gu.fastly.CrierEventProcessor.{ decodeRecord, successfulEvents }
 import org.scalatest.{ MustMatchers, OneInstancePerTest, WordSpecLike }
 
 class CrierEventProcessorSpec extends WordSpecLike with MustMatchers with OneInstancePerTest {
@@ -25,13 +27,13 @@ class CrierEventProcessorSpec extends WordSpecLike with MustMatchers with OneIns
     "properly deserialize a compressed event" in {
       val bytes = ThriftSerializer.serializeToBytes(event, Some(ZstdType), None)
       val record = new Record().withData(ByteBuffer.wrap(bytes))
-      CrierEventProcessor.process(List(record))(event => true) mustEqual 1
+      (List(record).map(decodeRecord) collect successfulEvents).size mustEqual 1
     }
 
     "properly deserialize a non-compressed event" in {
       val bytes = ThriftSerializer.serializeToBytes(event, None, None)
       val record = new Record().withData(ByteBuffer.wrap(bytes))
-      CrierEventProcessor.process(List(record))(event => true) mustEqual 1
+      (List(record).map(decodeRecord) collect successfulEvents).size mustEqual 1
     }
   }
 }

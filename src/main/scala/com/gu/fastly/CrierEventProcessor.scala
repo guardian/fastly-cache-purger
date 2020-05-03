@@ -3,28 +3,15 @@ package com.gu.fastly
 import com.amazonaws.services.kinesis.model.Record
 import com.gu.crier.model.event.v1.Event
 import com.gu.thrift.serializer.ThriftDeserializer
-import scala.util.Try
+
+import scala.util.{ Success, Try }
 
 object CrierEventProcessor {
-
-  def process(records: Seq[Record])(purge: Event => Boolean) = {
-    val processingResults: Iterable[Boolean] = records.flatMap { record =>
-      val event = eventFromRecord(record)
-      event.map { e =>
-        purge(e)
-      }.recover {
-        case error =>
-          println("Failed to deserialize Crier event from Kinesis record. Skipping.")
-          false
-      }.toOption
-    }
-    val purgedCount: Int = processingResults.count(_ == true)
-    println(s"Successfully purged $purgedCount pieces of content")
-    purgedCount
+  def decodeRecord: Record => Try[Event] = { r =>
+    val tryEvent = ThriftDeserializer.deserialize(r.getData.array)(Event)
+    tryEvent.failed.foreach(_ => println("Failed to deserialize Crier event from Kinesis record. Skipping."))
+    tryEvent
   }
 
-  private def eventFromRecord(record: Record): Try[Event] = {
-    ThriftDeserializer.deserialize(record.getData.array)(Event)
-  }
-
+  def successfulEvents: PartialFunction[Try[Event], Event] = { case Success(x) => x }
 }
