@@ -3,10 +3,10 @@ package com.gu.fastly
 import java.io.IOException
 
 import com.amazonaws.services.kinesis.model.Record
-import com.amazonaws.services.lambda.runtime.{Context, RequestHandler}
+import com.amazonaws.services.lambda.runtime.{ Context, RequestHandler }
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
-import com.gu.crier.model.event.v1.{Event, EventPayload, EventType}
-import com.gu.fastly.CrierEventProcessor.{decodeRecord, successfulEvents}
+import com.gu.crier.model.event.v1.{ Event, EventPayload, EventType }
+import com.gu.fastly.CrierEventProcessor.{ decodeRecord, successfulEvents }
 import okhttp3._
 import org.apache.commons.codec.digest.DigestUtils
 
@@ -30,12 +30,14 @@ class Lambda extends RequestHandler[KinesisEvent, Unit] {
     Future.traverse(
       rawRecords.map(decodeRecord) collect (successfulEvents andThen decidePurgeType)
     ) {
-        case Left(id) => purgeDelete(id).map(results => (id, results))
-        case Right(id) => purgeUpdate(id).map(results => (id, results))
+        case DeleteEvent(id) => purgeDelete(id).map(results => (id, results))
+        case UpdateEvent(id) => purgeUpdate(id).map(results => (id, results))
       }.flatMap { results: List[(Id, List[PurgeResult])] =>
         log(results)
-        val ids = results.collect(idForFullySuccessfulPurge)
-        twitter(ids)
+        val idsForFullySuccessfulPurge = results.collect({
+          case (id, results) if results.forall(_.status) => id
+        })
+        twitter(idsForFullySuccessfulPurge)
       }
   }
 
@@ -48,15 +50,19 @@ class Lambda extends RequestHandler[KinesisEvent, Unit] {
   object Nextgen extends Service { override def toString = "Nextgen" }
   object Mapi extends Service { override def toString = "Mapi" }
 
-  case class PurgeResult(status: Boolean, service: Service)
+  sealed trait CAPIEventType
+  case class UpdateEvent(id: Id) extends CAPIEventType
+  case class DeleteEvent(id: Id) extends CAPIEventType
 
-  // OkHttp requires a media type even for an empty POST body
-  private val EmptyJsonBody: RequestBody =
-    RequestBody.create(MediaType.parse("application/json; charset=utf-8"), "")
+  case class PurgeResult(status: Boolean, service: Service)
 
   private sealed trait PurgeType
   private object Soft extends PurgeType { override def toString = "soft" }
   private object Hard extends PurgeType { override def toString = "hard" }
+
+  // OkHttp requires a media type even for an empty POST body
+  private val EmptyJsonBody: RequestBody =
+    RequestBody.create(MediaType.parse("application/json; charset=utf-8"), "")
 
   def makeMapiSurrogateKey(contentId: String): String = s"Item/$contentId"
 
@@ -66,20 +72,19 @@ class Lambda extends RequestHandler[KinesisEvent, Unit] {
     dotcomSurrogateKey
   }
 
-  // Left[Id] for Delete, Right[Id] for Update
-  def decidePurgeType: PartialFunction[Event, Either[Id, Id]] = {
-    case Event(_, EventType.Update, _, _, Some(EventPayload.Content(content))) => Right(content.id)
-    case Event(_, EventType.RetrievableUpdate, _, _, Some(EventPayload.RetrievableContent(content))) => Right(content.id)
-    case Event(_, EventType.Delete, _, _, Some(EventPayload.RetrievableContent(content))) => Left(content.id)
+  def decidePurgeType: PartialFunction[Event, CAPIEventType] = {
+    case Event(_, EventType.Update, _, _, Some(EventPayload.Content(content))) => UpdateEvent(content.id)
+    case Event(_, EventType.RetrievableUpdate, _, _, Some(EventPayload.RetrievableContent(content))) => UpdateEvent(content.id)
+    case Event(_, EventType.Delete, _, _, Some(EventPayload.RetrievableContent(content))) => DeleteEvent(content.id)
   }
 
-  def purgeDelete: Id => Future[List[PurgeResult]] = { id =>
+  def purgeDelete(id: Id): Future[List[PurgeResult]] = {
     val fastlyResult: Future[Boolean] = sendFastlyPurgeRequest(id, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(id), config.fastlyDotcomApiKey)
     val ampResult: Future[Boolean] = fastlyResult.flatMap(if (_) sendAmpPingRequest(id) else Future.successful(false))
     Future.sequence(fastlyResult.map(PurgeResult(_, Dotcom)) :: ampResult.map(PurgeResult(_, AMP)) :: Nil)
   }
 
-  def purgeUpdate: Id => Future[List[PurgeResult]] = { id =>
+  def purgeUpdate(id: Id): Future[List[PurgeResult]] = {
     Future.sequence(
       sendFastlyPurgeRequest(id, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(id), config.fastlyDotcomApiKey).map(PurgeResult(_, Dotcom)) ::
         sendFastlyPurgeRequest(id, Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(id), config.fastlyDotcomApiKey).map(PurgeResult(_, Nextgen)) ::
@@ -88,7 +93,7 @@ class Lambda extends RequestHandler[KinesisEvent, Unit] {
     )
   }
 
-  def log: List[(Id, List[PurgeResult])] => Unit = { results =>
+  def log(results: List[(Id, List[PurgeResult])]): Unit = {
     val purgeResultCounts = results.flatMap(_._2).groupBy(identity).mapValues(_.size)
     purgeResultCounts.foreach {
       case (PurgeResult(true, service), idCount) => println(s"Successfully purged $service for $idCount content ids")
@@ -96,11 +101,7 @@ class Lambda extends RequestHandler[KinesisEvent, Unit] {
     }
   }
 
-  def idForFullySuccessfulPurge: PartialFunction[(Id, List[PurgeResult]), Id] = {
-    case (id, results) if results.forall(_.status) => id
-  }
-
-  def twitter: List[Id] => Future[Unit] = { ids =>
+  def twitter(ids: List[Id]): Future[Unit] = {
     println(s"Writing ${ids.size} content ids to SQS for Twitter cache clearing")
     Future.successful(Unit)
   }

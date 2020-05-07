@@ -7,8 +7,8 @@ import com.gu.thrift.serializer.ThriftDeserializer
 import scala.util.{ Success, Try }
 
 object CrierEventProcessor {
-  def decodeRecord: Record => Try[Event] = { r =>
-    val tryEvent = ThriftDeserializer.deserialize(r.getData.array)(Event)
+  def decodeRecord(record: Record): Try[Event] = {
+    val tryEvent = ThriftDeserializer.deserialize(record.getData.array)(Event)
     tryEvent.failed.foreach(_ => println("Failed to deserialize Crier event from Kinesis record. Skipping."))
     tryEvent
   }
