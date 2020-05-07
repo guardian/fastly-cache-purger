@@ -3,22 +3,28 @@ package com.gu.fastly
 import java.io.IOException
 
 import com.amazonaws.services.kinesis.model.Record
+import com.amazonaws.services.lambda.runtime.{Context, RequestHandler}
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
-import com.gu.crier.model.event.v1.{ Event, EventPayload, EventType }
-import com.gu.fastly.CrierEventProcessor.{ decodeRecord, successfulEvents }
+import com.gu.crier.model.event.v1.{Event, EventPayload, EventType}
+import com.gu.fastly.CrierEventProcessor.{decodeRecord, successfulEvents}
 import okhttp3._
 import org.apache.commons.codec.digest.DigestUtils
 
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{ Future, Promise }
+import scala.concurrent.{ Future, Promise, Await, duration }
 
-class Lambda {
+class Lambda extends RequestHandler[KinesisEvent, Unit] {
 
   private val config = Config.load()
   private val httpClient = new OkHttpClient()
 
-  def handle(event: KinesisEvent): Future[Unit] = {
+  def handleRequest(event: KinesisEvent, context: Context): Unit = {
+    Await.result(processEvent(event), duration.Duration(context.getRemainingTimeInMillis, duration.MILLISECONDS))
+    println(s"Finished.")
+  }
+
+  def processEvent(event: KinesisEvent): Future[Unit] = {
     val rawRecords: List[Record] = event.getRecords.asScala.map(_.getKinesis).toList
 
     Future.traverse(
