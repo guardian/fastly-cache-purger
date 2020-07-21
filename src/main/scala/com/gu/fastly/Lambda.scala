@@ -30,14 +30,14 @@ class Lambda extends RequestHandler[KinesisEvent, Unit] {
     Future.traverse(
       rawRecords.map(decodeRecord) collect (successfulEvents andThen decidePurgeType)
     ) {
-        case DeleteEvent(id) => purgeDelete(id).map(results => (id, results))
-        case UpdateEvent(id) => purgeUpdate(id).map(results => (id, results))
+        case DeleteEvent(id) => hardPurge(id).map(results => (id, results))
+        case UpdateEvent(id) => softPurge(id).map(results => (id, results))
       }.flatMap { results: List[(Id, List[PurgeResult])] =>
         log(results)
         val idsForFullySuccessfulPurge = results.collect({
           case (id, results) if results.forall(_.status) => id
         })
-        twitter(idsForFullySuccessfulPurge)
+        publish(idsForFullySuccessfulPurge)
       }
   }
 
@@ -78,19 +78,20 @@ class Lambda extends RequestHandler[KinesisEvent, Unit] {
     case Event(_, EventType.Delete, _, _, Some(EventPayload.RetrievableContent(content))) => DeleteEvent(content.id)
   }
 
-  def purgeDelete(id: Id): Future[List[PurgeResult]] = {
-    val fastlyResult: Future[Boolean] = sendFastlyPurgeRequest(id, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(id), config.fastlyDotcomApiKey)
-    val ampResult: Future[Boolean] = fastlyResult.flatMap(if (_) sendAmpPingRequest(id) else Future.successful(false))
-    Future.sequence(fastlyResult.map(PurgeResult(_, Dotcom)) :: ampResult.map(PurgeResult(_, AMP)) :: Nil)
+  def hardPurge(id: Id): Future[List[PurgeResult]] = {
+    for {
+      dotcomIsPurged <- sendFastlyPurgeRequest(id, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(id), config.fastlyDotcomApiKey)
+      ampIsPurged <- if (dotcomIsPurged) sendAmpPingRequest(id) else Future.successful(false)
+    } yield List(PurgeResult(dotcomIsPurged, Dotcom), PurgeResult(ampIsPurged, AMP))
   }
 
-  def purgeUpdate(id: Id): Future[List[PurgeResult]] = {
-    Future.sequence(
-      sendFastlyPurgeRequest(id, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(id), config.fastlyDotcomApiKey).map(PurgeResult(_, Dotcom)) ::
-        sendFastlyPurgeRequest(id, Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(id), config.fastlyDotcomApiKey).map(PurgeResult(_, Nextgen)) ::
-        sendFastlyPurgeRequest(id, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(id), config.fastlyMapiApiKey).map(PurgeResult(_, Mapi)) ::
-        Nil
-    )
+  //See https://docs.fastly.com/en/guides/soft-purges
+  def softPurge(id: Id): Future[List[PurgeResult]] = {
+    val dotcomResult = sendFastlyPurgeRequest(id, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(id), config.fastlyDotcomApiKey).map(PurgeResult(_, Dotcom))
+    val nextgenResult = sendFastlyPurgeRequest(id, Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(id), config.fastlyDotcomApiKey).map(PurgeResult(_, Nextgen))
+    val mapiResult = sendFastlyPurgeRequest(id, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(id), config.fastlyMapiApiKey).map(PurgeResult(_, Mapi))
+
+    Future.sequence(List(dotcomResult, nextgenResult, mapiResult))
   }
 
   def log(results: List[(Id, List[PurgeResult])]): Unit = {
@@ -101,7 +102,7 @@ class Lambda extends RequestHandler[KinesisEvent, Unit] {
     }
   }
 
-  def twitter(ids: List[Id]): Future[Unit] = {
+  def publish(ids: List[Id]): Future[Unit] = {
     println(s"Writing ${ids.size} content ids to SQS for Twitter cache clearing")
     Future.successful(Unit)
   }
