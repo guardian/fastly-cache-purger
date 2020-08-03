@@ -30,18 +30,18 @@ class Lambda extends RequestHandler[KinesisEvent, Unit] {
     Future.traverse(
       rawRecords.map(decodeRecord) collect (successfulEvents andThen decidePurgeType)
     ) {
-        case DeleteEvent(id) => hardPurge(id).map(results => (id, results))
-        case UpdateEvent(id) => softPurge(id).map(results => (id, results))
-      }.flatMap { results: List[(Id, List[PurgeResult])] =>
-        log(results)
-        val idsForFullySuccessfulPurge = results.collect({
-          case (id, results) if results.forall(_.status) => id
+        case DeleteEvent(contentId) => hardPurge(contentId)
+        case UpdateEvent(contentId) => softPurge(contentId)
+      }.flatMap { results: List[List[PurgeResult]] =>
+        log(results.flatten)
+        val idsForFullySuccessfulPurge: List[ContentId] = results.collect({
+          case resSet: List[PurgeResult] if resSet.forall(_.status) => resSet.head.contentId
         })
         publish(idsForFullySuccessfulPurge)
       }
   }
 
-  type Id = String
+  type ContentId = String
 
   sealed trait Service
 
@@ -51,10 +51,10 @@ class Lambda extends RequestHandler[KinesisEvent, Unit] {
   object Mapi extends Service { override def toString = "Mapi" }
 
   sealed trait CAPIEventType
-  case class UpdateEvent(id: Id) extends CAPIEventType
-  case class DeleteEvent(id: Id) extends CAPIEventType
+  case class UpdateEvent(contentId: ContentId) extends CAPIEventType
+  case class DeleteEvent(contentId: ContentId) extends CAPIEventType
 
-  case class PurgeResult(status: Boolean, service: Service)
+  case class PurgeResult(contentId: ContentId, status: Boolean, service: Service)
 
   private sealed trait PurgeType
   private object Soft extends PurgeType { override def toString = "soft" }
@@ -78,32 +78,32 @@ class Lambda extends RequestHandler[KinesisEvent, Unit] {
     case Event(_, EventType.Delete, _, _, Some(EventPayload.RetrievableContent(content))) => DeleteEvent(content.id)
   }
 
-  def hardPurge(id: Id): Future[List[PurgeResult]] = {
+  def hardPurge(contentId: ContentId): Future[List[PurgeResult]] = {
     for {
-      dotcomIsPurged <- sendFastlyPurgeRequest(id, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(id), config.fastlyDotcomApiKey)
-      ampIsPurged <- if (dotcomIsPurged) sendAmpPingRequest(id) else Future.successful(false)
-    } yield List(PurgeResult(dotcomIsPurged, Dotcom), PurgeResult(ampIsPurged, AMP))
+      dotcomIsPurged <- sendFastlyPurgeRequest(contentId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(contentId), config.fastlyDotcomApiKey)
+      ampIsPurged <- if (dotcomIsPurged) sendAmpPingRequest(contentId) else Future.successful(false)
+    } yield List(PurgeResult(contentId, dotcomIsPurged, Dotcom), PurgeResult(contentId, ampIsPurged, AMP))
   }
 
   //See https://docs.fastly.com/en/guides/soft-purges
-  def softPurge(id: Id): Future[List[PurgeResult]] = {
-    val dotcomResult = sendFastlyPurgeRequest(id, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(id), config.fastlyDotcomApiKey).map(PurgeResult(_, Dotcom))
-    val nextgenResult = sendFastlyPurgeRequest(id, Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(id), config.fastlyDotcomApiKey).map(PurgeResult(_, Nextgen))
-    val mapiResult = sendFastlyPurgeRequest(id, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(id), config.fastlyMapiApiKey).map(PurgeResult(_, Mapi))
+  def softPurge(contentId: ContentId): Future[List[PurgeResult]] = {
+    val dotcomResult = sendFastlyPurgeRequest(contentId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(contentId), config.fastlyDotcomApiKey).map(PurgeResult(contentId, _, Dotcom))
+    val nextgenResult = sendFastlyPurgeRequest(contentId, Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(contentId), config.fastlyDotcomApiKey).map(PurgeResult(contentId, _, Nextgen))
+    val mapiResult = sendFastlyPurgeRequest(contentId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(contentId), config.fastlyMapiApiKey).map(PurgeResult(contentId, _, Mapi))
 
     Future.sequence(List(dotcomResult, nextgenResult, mapiResult))
   }
 
-  def log(results: List[(Id, List[PurgeResult])]): Unit = {
-    val purgeResultCounts = results.flatMap(_._2).groupBy(identity).mapValues(_.size)
-    purgeResultCounts.foreach {
-      case (PurgeResult(true, service), idCount) => println(s"Successfully purged $service for $idCount content ids")
-      case (PurgeResult(false, service), idCount) => println(s"Failed to purge $service for $idCount content ids")
+  def log(results: List[PurgeResult]): Unit = {
+    val purgeCountsByServiceAndStatus = results.groupBy(res => (res.service, res.status)).mapValues(_.size)
+    purgeCountsByServiceAndStatus.foreach {
+      case ((service, true), idCount) => println(s"Successfully purged $service for $idCount content ids")
+      case ((service, false), idCount) => println(s"Failed to purge $service for $idCount content ids")
     }
   }
 
-  def publish(ids: List[Id]): Future[Unit] = {
-    println(s"Writing ${ids.size} content ids to SQS for Twitter cache clearing")
+  def publish(contentIds: List[ContentId]): Future[Unit] = {
+    println(s"Writing ${contentIds.size} content ids to SQS for Twitter cache clearing")
     Future.successful(Unit)
   }
 
