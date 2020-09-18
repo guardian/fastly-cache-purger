@@ -36,7 +36,7 @@ Resources:
       FunctionName: !Sub "${App}-${Stage}"
       Description: Fastly cache purger
       Runtime: java8
-      Handler: com.gu.fastly.Lambda::handle
+      Handler: com.gu.fastly.Lambda::handleRequest
       MemorySize: 512
       Timeout: 15
       Role: !GetAtt LambdaRole.Arn
