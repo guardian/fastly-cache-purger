@@ -88,7 +88,7 @@ class Lambda extends RequestHandler[KinesisEvent, Unit] {
   //See https://docs.fastly.com/en/guides/soft-purges
   def softPurge(contentId: ContentId): Future[List[PurgeResult]] = {
     val dotcomResult = sendFastlyPurgeRequest(contentId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(contentId), config.fastlyDotcomApiKey).map(PurgeResult(contentId, _, Dotcom))
-    val nextgenResult = sendFastlyPurgeRequest(contentId, Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(contentId), config.fastlyDotcomApiKey).map(PurgeResult(contentId, _, Nextgen))
+    val nextgenResult = sendFastlyPurgeRequest(contentId, Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(s"$contentId.json"), config.fastlyDotcomApiKey).map(PurgeResult(contentId, _, Nextgen))
     val mapiResult = sendFastlyPurgeRequest(contentId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(contentId), config.fastlyMapiApiKey).map(PurgeResult(contentId, _, Mapi))
 
     Future.sequence(List(dotcomResult, nextgenResult, mapiResult))
