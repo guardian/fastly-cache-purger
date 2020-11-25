@@ -89,14 +89,14 @@ class Lambda {
   }
   /**
    * Send a ping request to Google AMP to refresh the cache.
-   * See https://developers.google.com/amp/cache/update-ping
+   * See https://developers.google.com/amp/cache/update-cache
    *
    * @return whether the request was successfully processed by the server
    */
   private def sendAmpPingRequest(contentId: String): Boolean = {
     val contentPath = s"/$contentId"
 
-    val url = s"https://amp-theguardian-com.cdn.ampproject.org/update-ping/c/s/amp.theguardian.com${contentPath}"
+    val url = s"https://amp-theguardian-com.cdn.ampproject.org/update-cache/c/s/amp.theguardian.com${contentPath}"
 
     val request = new Request.Builder()
       .url(url)
