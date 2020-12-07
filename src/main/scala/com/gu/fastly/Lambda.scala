@@ -32,6 +32,7 @@ class Lambda {
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
           sendFastlyPurgeRequestForLiveblogAjaxFiles(event.payloadId)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
+          logArticleUpdates(event)
 
         case (ItemType.Content, EventType.RetrievableUpdate) =>
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
@@ -140,6 +141,27 @@ class Lambda {
       case t: Throwable =>
         println("Warning; cloudwatch metrics ping failed: " + t.getMessage)
     }
+  }
+
+  /**
+   * Identify if the content update was an article.
+   * Additional third parties may be interested in these in the near future
+   */
+  def logArticleUpdates(event: Event): Boolean = {
+    event.eventType match {
+      case EventType.Update =>
+        // An update event for content contain an optional RetrievableContent item as the payload.
+        // (Crier KinesisEventSender.buildRetrievablePayload will have downcast from Content to KinesisEventSender before sending)
+        event.payload.foreach {
+          case retrievableContent: RetrievableContent =>
+            // RetrievableContent content does not contain the content type or webUrl we want;
+            // We will need to callback to CAPI to resolve these.
+            // The majority of these calls be for the uninteresting content types like fronts
+            // println(s"Saw purge of article with contentId [$contentId] and webUrl [$contentWebUrl]")
+            val contentCapiUrl = retrievableContent.capiUrl
+        }
+    }
+    true
   }
 
 }
