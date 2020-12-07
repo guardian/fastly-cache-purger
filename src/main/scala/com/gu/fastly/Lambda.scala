@@ -121,13 +121,15 @@ class Lambda {
       case EventType.Update =>
         // An update event for content contain an optional RetrievableContent item as the payload.
         // (Crier KinesisEventSender.buildRetrievablePayload will have downcast from Content to KinesisEventSender before sending)
-        event.payload.foreach {
-          case retrievableContent: RetrievableContent =>
-            // RetrievableContent content does not contain the content type or webUrl we want;
-            // We will need to callback to CAPI to resolve these.
-            // The majority of these calls be for the uninteresting content types like fronts
-            // println(s"Saw purge of article with contentId [$contentId] and webUrl [$contentWebUrl]")
-            val contentCapiUrl = retrievableContent.capiUrl
+        event.payload.foreach { payload =>
+          payload.containedValue() match {
+            case retrievableContent: RetrievableContent =>
+              // RetrievableContent content does not contain the content type or webUrl we want;
+              // We will need to callback to CAPI to resolve these.
+              // The majority of these calls be for the uninteresting content types like fronts
+              // println(s"Saw purge of article with contentId [$contentId] and webUrl [$contentWebUrl]")
+              val contentCapiUrl = retrievableContent.capiUrl
+          }
         }
     }
     true
