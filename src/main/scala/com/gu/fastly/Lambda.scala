@@ -1,11 +1,12 @@
 package com.gu.fastly
 
-import org.apache.commons.codec.digest.DigestUtils
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
-import okhttp3._
 import com.gu.crier.model.event.v1._
+import okhttp3._
+import org.apache.commons.codec.digest.DigestUtils
+
 import scala.collection.JavaConverters._
 
 class Lambda {
@@ -27,6 +28,8 @@ class Lambda {
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
           sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(s"${event.payloadId}.json"), config.fastlyDotcomApiKey)
           sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(s"${event.payloadId}.json"), config.fastlyMapiApiKey)
+          logArticleUpdates(event)
+
         case (ItemType.Content, EventType.RetrievableUpdate) =>
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
@@ -107,6 +110,27 @@ class Lambda {
     println(s"Sent ping request for content with ID [$contentId]. Response from Google AMP CDN: [${response.code}] [${response.body.string}]")
 
     response.code == 204
+  }
+
+  /**
+   * Identify if the content update was an article.
+   * Additional third parties may be interested in these in the near future
+   */
+  def logArticleUpdates(event: Event): Boolean = {
+    event.eventType match {
+      case EventType.Update =>
+        // An update event for content contain an optional RetrievableContent item as the payload.
+        // (Crier KinesisEventSender.buildRetrievablePayload will have downcast from Content to KinesisEventSender before sending)
+        event.payload.foreach {
+          case retrievableContent: RetrievableContent =>
+            // RetrievableContent content does not contain the content type or webUrl we want;
+            // We will need to callback to CAPI to resolve these.
+            // The majority of these calls be for the uninteresting content types like fronts
+            // println(s"Saw purge of article with contentId [$contentId] and webUrl [$contentWebUrl]")
+            val contentCapiUrl = retrievableContent.capiUrl
+        }
+    }
+    true
   }
 
 }
