@@ -28,7 +28,7 @@ class Lambda {
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
           sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(s"${event.payloadId}.json"), config.fastlyDotcomApiKey)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
-          logArticleUpdates(event)
+          sendFacebookNewstabPing(event.payloadId)
 
         case (ItemType.Content, EventType.RetrievableUpdate) =>
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
@@ -112,27 +112,28 @@ class Lambda {
     response.code == 204
   }
 
-  /**
-   * Identify if the content update was an article.
-   * Additional third parties may be interested in these in the near future
-   */
-  def logArticleUpdates(event: Event): Boolean = {
-    event.eventType match {
-      case EventType.Update =>
-        // An update event for content contain an optional RetrievableContent item as the payload.
-        // (Crier KinesisEventSender.buildRetrievablePayload will have downcast from Content to KinesisEventSender before sending)
-        event.payload.foreach { payload =>
-          payload.containedValue() match {
-            case retrievableContent: RetrievableContent =>
-              // RetrievableContent content does not contain the content type or webUrl we want;
-              // We will need to callback to CAPI to resolve these.
-              // The majority of these calls be for the uninteresting content types like fronts
-              // println(s"Saw purge of article with contentId [$contentId] and webUrl [$contentWebUrl]")
-              val contentCapiUrl = retrievableContent.capiUrl
-          }
-        }
-    }
-    true
+  def sendFacebookNewstabPing(contentId: String): Boolean = {
+    val contentPath = s"/$contentId"
+    val contentWebUrl = s"https://www.theguardian.com${contentPath}"
+
+    val scope = "new_tab_dev_env" // TODO push to config
+    val accessToken = "TODO"
+
+    // The POST endpoint with URL encoded parameters as per New Tab documentation
+    val indexArticleUrl = "https://graph.facebook.com?id=" + contentWebUrl +  // TODO proper encoding
+      "&scopes=" + scope +
+      "&access_token=" + accessToken
+
+    val emptyRequestBody = RequestBody  // TODO check this
+    val request = new Request.Builder()
+      .url(indexArticleUrl)
+      .post(emptyRequestBody)
+      .build()
+
+    val response = httpClient.newCall(request).execute()
+    println(s"Sent Newstab ping request for content with ID [$contentId]. Response from Facebook: [${response.code}] [${response.body.string}]")
+
+    response.code == 200  // Check response code and parse body for INDEXED response
   }
 
 }
