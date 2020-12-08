@@ -151,8 +151,8 @@ class Lambda {
     val contentPath = s"/$contentId"
     val contentWebUrl = s"https://www.theguardian.com${contentPath}"
 
-    val scope = "new_tab_dev_env" // TODO push to config
-    val accessToken = "TODO"
+    val scope = config.facebookNewsTabScope
+    val accessToken = config.facebookNewsTabAccessToken
 
     // The POST endpoint with URL encoded parameters as per New Tab documentation
     val indexArticleUrl = "https://graph.facebook.com?id=" + contentWebUrl +  // TODO proper encoding
