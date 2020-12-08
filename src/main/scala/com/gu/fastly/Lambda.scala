@@ -151,17 +151,18 @@ class Lambda {
     val contentPath = s"/$contentId"
     val contentWebUrl = s"https://www.theguardian.com${contentPath}"
 
-    val scope = config.facebookNewsTabScope
-    val accessToken = config.facebookNewsTabAccessToken
-
     // The POST endpoint with URL encoded parameters as per New Tab documentation
-    val indexArticleUrl = "https://graph.facebook.com?id=" + contentWebUrl +  // TODO proper encoding
-      "&scopes=" + scope +
-      "&access_token=" + accessToken
+    val indexArticle = new HttpUrl.Builder()
+      .scheme("https")
+      .host("graph.facebook.com")
+      .addQueryParameter("id", contentWebUrl)
+      .addQueryParameter("scopes", config.facebookNewsTabScope)
+      .addQueryParameter("access_token", config.facebookNewsTabAccessToken)
+      .build();
 
     val emptyRequestBody = RequestBody  // TODO check this
     val request = new Request.Builder()
-      .url(indexArticleUrl)
+      .url(indexArticle)
       .post(emptyRequestBody)
       .build()
 
