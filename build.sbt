@@ -4,6 +4,7 @@ scalaVersion := "2.12.8"
 name := "fastly-cache-purger"
 scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
+val circeVersion = "0.12.3"
 val Log4jVersion = "2.10.0"
 
 libraryDependencies ++= Seq(
@@ -18,6 +19,9 @@ libraryDependencies ++= Seq(
   "org.apache.logging.log4j" % "log4j-core" % Log4jVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % "3.7.2",
   "net.logstash.logback" % "logstash-logback-encoder" % "4.11",
+  "io.circe" %% "circe-core" % circeVersion,
+  "io.circe" %% "circe-generic" % circeVersion,
+  "io.circe" %% "circe-parser" % circeVersion,
   "org.scalatest" %% "scalatest" % "3.0.0" % "test"
 )
 
