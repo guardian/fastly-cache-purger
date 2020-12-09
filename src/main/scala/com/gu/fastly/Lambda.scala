@@ -40,8 +40,6 @@ class Lambda {
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
           sendFastlyPurgeRequestForLiveblogAjaxFiles(event.payloadId)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
-          // TODO why are these .json decaches omitted for RetrievableUpdate?
-          // These seem to be different representations of equilivant events differing only on content size?
           sendFacebookNewstabPing(event.payloadId)
 
         case other =>
