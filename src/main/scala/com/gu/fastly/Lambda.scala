@@ -169,10 +169,10 @@ class Lambda {
       .addQueryParameter("id", contentWebUrl)
       .addQueryParameter("scopes", scope)
       .addQueryParameter("access_token", config.facebookNewsTabAccessToken)
-      // TODO scape parameter; does this need to be set differently on initial submissions and updates
+      .addQueryParameter("scrape", "true")
       .build();
 
-    val emptyRequestBody = RequestBody // TODO check this
+    val emptyRequestBody = RequestBody
     val request = new Request.Builder()
       .url(indexArticle)
       .post(emptyRequestBody)
