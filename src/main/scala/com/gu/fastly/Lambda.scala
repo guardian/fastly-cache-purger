@@ -28,15 +28,13 @@ class Lambda {
           sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
         case (ItemType.Content, EventType.Update) =>
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
-          sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(s"${event.payloadId}.json"), config.fastlyDotcomApiKey)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
+          sendFastlyPurgeRequestForAjaxFiles(event.payloadId) // Why does this only have to happen for content updates which are small enough not to have been sent as RetrievableUpdate?
           sendFacebookNewstabPing(event.payloadId)
 
         case (ItemType.Content, EventType.RetrievableUpdate) =>
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
-          // TODO why are these .json decaches omitted for RetrievableUpdate?
-          // These seem to be different representations of equilivant events differing only on content size?
           sendFacebookNewstabPing(event.payloadId)
 
         case other =>
@@ -75,6 +73,12 @@ class Lambda {
       sendAmpPingRequest(contentId)
     else
       false
+  }
+
+  private def sendFastlyPurgeRequestForAjaxFiles(contentId: String) = {
+    val ajaxFileForContentId = s"${contentId}.json"
+    sendFastlyPurgeRequest(ajaxFileForContentId, Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(ajaxFileForContentId), config.fastlyDotcomApiKey)
+    sendFastlyPurgeRequest(ajaxFileForContentId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(ajaxFileForContentId), config.fastlyMapiApiKey)
   }
 
   /**
@@ -140,10 +144,10 @@ class Lambda {
       .addQueryParameter("scrape", "true")
       .build();
 
-    val emptyRequestBody = RequestBody
+    val emptyRequestBody = null
     val request = new Request.Builder()
       .url(indexArticle)
-      .post(emptyRequestBody)
+      .post(null)
       .build()
 
     val response = httpClient.newCall(request).execute()
