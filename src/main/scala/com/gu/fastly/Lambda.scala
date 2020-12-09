@@ -35,6 +35,9 @@ class Lambda {
         case (ItemType.Content, EventType.RetrievableUpdate) =>
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
+          // TODO why are these .json decaches omitted for RetrievableUpdate?
+          // These seem to be different representations of equilivant events differing only on content size?
+          sendFacebookNewstabPing(event.payloadId)
 
         case other =>
           // for now we only send purges for content, so ignore any other events
