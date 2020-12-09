@@ -6,6 +6,8 @@ import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
 import com.gu.crier.model.event.v1._
+import io.circe.generic.auto._
+import io.circe.parser._
 import okhttp3._
 import org.apache.commons.codec.digest.DigestUtils
 
@@ -53,8 +55,14 @@ class Lambda {
     RequestBody.create(MediaType.parse("application/json; charset=utf-8"), "")
 
   private sealed trait PurgeType
-  private object Soft extends PurgeType { override def toString = "soft" }
-  private object Hard extends PurgeType { override def toString = "hard" }
+
+  private object Soft extends PurgeType {
+    override def toString = "soft"
+  }
+
+  private object Hard extends PurgeType {
+    override def toString = "hard"
+  }
 
   def makeMapiSurrogateKey(contentId: String): String = s"Item/$contentId"
 
@@ -102,6 +110,7 @@ class Lambda {
 
     purged
   }
+
   /**
    * Send a ping request to Google AMP to refresh the cache.
    * See https://developers.google.com/amp/cache/update-ping
@@ -151,25 +160,47 @@ class Lambda {
     val contentPath = s"/$contentId"
     val contentWebUrl = s"https://www.theguardian.com${contentPath}"
 
+    val scope = config.facebookNewsTabScope
+
     // The POST endpoint with URL encoded parameters as per New Tab documentation
     val indexArticle = new HttpUrl.Builder()
       .scheme("https")
       .host("graph.facebook.com")
       .addQueryParameter("id", contentWebUrl)
-      .addQueryParameter("scopes", config.facebookNewsTabScope)
+      .addQueryParameter("scopes", scope)
       .addQueryParameter("access_token", config.facebookNewsTabAccessToken)
+      // TODO scape parameter; does this need to be set differently on initial submissions and updates
       .build();
 
-    val emptyRequestBody = RequestBody  // TODO check this
+    val emptyRequestBody = RequestBody // TODO check this
     val request = new Request.Builder()
       .url(indexArticle)
       .post(emptyRequestBody)
       .build()
 
     val response = httpClient.newCall(request).execute()
-    println(s"Sent Newstab ping request for content with ID [$contentId]. Response from Facebook: [${response.code}] [${response.body.string}]")
 
-    response.code == 200  // Check response code and parse body for INDEXED response
+    // Soft evaluate the Facebook response
+    // Their documentation does not specifically mention response codes.
+    // Lets evaluate and log our interpretation of the response for now
+    val wasSuccessful = if (response.code == 200) {
+      decode[FacebookNewstabResponse](response.body.string()).fold({ error =>
+        println("Failed to parse Facebook Newstab response: " + error.getMessage)
+        false
+      }, { facebookResponse =>
+        facebookResponse.scopes.get(scope).contains("INDEXED")
+      })
+    } else {
+      false
+    }
+
+    println(s"Sent Facebook Newstab ping request for content with url [$contentWebUrl]. " +
+      s"Response from Facebook: [${response.code}] [${response.body.string}]. " +
+      s"Was successful: [$wasSuccessful]")
+
+    true // Always return true during the proof on concept until we are confident about Facebook's responses
   }
+
+  case class FacebookNewstabResponse(url: String, scopes: Map[String, String])
 
 }
