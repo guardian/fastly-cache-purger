@@ -144,10 +144,9 @@ class Lambda {
       .addQueryParameter("scrape", "true")
       .build();
 
-    val emptyRequestBody = null
     val request = new Request.Builder()
       .url(indexArticle)
-      .post(null)
+      .post(EmptyJsonBody)
       .build()
 
     val response = httpClient.newCall(request).execute()
