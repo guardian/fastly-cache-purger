@@ -29,7 +29,7 @@ class Lambda {
         case (ItemType.Content, EventType.Update) =>
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
-          sendFastlyPurgeRequestForAjaxFiles(event.payloadId) // Why does this only have to happen for content updates which are small enough not to have been sent as RetrievableUpdate?
+          sendFastlyPurgeRequestForLiveblogAjaxFiles(event.payloadId) // Why does this only have to happen for content updates which are small enough not to have been sent as RetrievableUpdate?
           sendFacebookNewstabPing(event.payloadId)
 
         case (ItemType.Content, EventType.RetrievableUpdate) =>
@@ -75,7 +75,7 @@ class Lambda {
       false
   }
 
-  private def sendFastlyPurgeRequestForAjaxFiles(contentId: String) = {
+  private def sendFastlyPurgeRequestForLiveblogAjaxFiles(contentId: String) = {
     val ajaxFileForContentId = s"${contentId}.json"
     sendFastlyPurgeRequest(ajaxFileForContentId, Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(ajaxFileForContentId), config.fastlyDotcomApiKey)
     sendFastlyPurgeRequest(ajaxFileForContentId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(ajaxFileForContentId), config.fastlyMapiApiKey)
