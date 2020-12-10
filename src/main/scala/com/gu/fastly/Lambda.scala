@@ -118,6 +118,54 @@ class Lambda {
   }
 
   /**
+   * Add the article to the News Tab denylist hiding the article from the News Tab.
+   */
+  def sendFacebookNewsitemDenylistRequest(contentId: String): Boolean = {
+    val contentPath = s"/$contentId"
+    val contentWebUrl = s"https://www.theguardian.com${contentPath}"
+
+    val scope = config.facebookNewsTabScope
+
+    val denylistArticle = new HttpUrl.Builder()
+      .scheme("https")
+      .host("graph.facebook.com")
+      .addQueryParameter("id", contentWebUrl)
+      .addQueryParameter("scopes", scope)
+      .addQueryParameter("access_token", config.facebookNewsTabAccessToken)
+      .addQueryParameter("denylist", "true")
+      .build();
+
+    val request = new Request.Builder()
+      .url(denylistArticle)
+      .post(EmptyJsonBody)
+      .build()
+
+    val response = httpClient.newCall(request).execute()
+
+    // Soft evaluate the Facebook response
+    // Their documentation does not specifically mention response codes.
+    // Lets evaluate and log our interpretation of the response for now
+    val wasSuccessful = response.code match {
+      case 200 =>
+        decode[FacebookNewstabResponse](response.body.string()).fold({ error =>
+          println("Failed to parse Facebook Newstab response: " + error.getMessage)
+          false
+        }, { facebookResponse =>
+          facebookResponse.scopes.get(scope).contains("DENYLISTED")
+        })
+      case _ =>
+        println("Received unexpected response code from Facebook: " + _)
+        false
+    }
+
+    println(s"Sent Facebook Newstab denylist request for content with url [$contentWebUrl]. " +
+      s"Response from Facebook: [${response.code}] [${response.body.string}]. " +
+      s"Was successful: [$wasSuccessful]")
+
+    true // Always return true during the proof on concept until we are confident about Facebook's responses
+  }
+
+  /**
    * If this content update is editorially interesting to Facebook Newstab ping their update end point.
    *
    * @return decision and/or ping completed successfully
@@ -127,7 +175,7 @@ class Lambda {
     val contentWebUrl = s"https://www.theguardian.com${contentPath}"
 
     // This is an interesting question which will almost certainly by iterated on.
-    // Basing this decision entirely on the contentId is unlikely age well.
+    // Basing this decision entirely on the contentId is unlikely to age well.
     // Our opening move for the proof of concept is to dibble a small amount of content which is unlikely to be taken down.
     // Travel articles sound safe.
     val contentIsInterestingToFacebookNewstab = contentId.contains("travel/2020")
@@ -135,7 +183,7 @@ class Lambda {
     if (contentIsInterestingToFacebookNewstab) {
       val scope = config.facebookNewsTabScope
 
-      // The POST endpoint with URL encoded parameters as per New Tab documentation
+      // POST endpoint with URL encoded parameters as per New Tab documentation
       val indexArticle = new HttpUrl.Builder()
         .scheme("https")
         .host("graph.facebook.com")
