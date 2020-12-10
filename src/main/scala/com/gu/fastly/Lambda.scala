@@ -73,9 +73,7 @@ class Lambda {
   }
 
   private def sendFastlyPurgeRequestForLiveblogAjaxFiles(contentId: String) = {
-    val ajaxFileForContentId = s"${contentId}.json"
-    sendFastlyPurgeRequest(ajaxFileForContentId, Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(ajaxFileForContentId), config.fastlyDotcomApiKey)
-    sendFastlyPurgeRequest(ajaxFileForContentId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(ajaxFileForContentId), config.fastlyMapiApiKey)
+    sendFastlyPurgeRequest(s"${contentId}.json", Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(s"${contentId}.json"), config.fastlyDotcomApiKey)
   }
 
   /**
