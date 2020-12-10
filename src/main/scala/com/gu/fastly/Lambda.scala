@@ -26,7 +26,7 @@ class Lambda {
         case (ItemType.Content, EventType.Update) =>
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
           sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(s"${event.payloadId}.json"), config.fastlyDotcomApiKey)
-          sendFastlyPurgeRequest(s"${event.payloadId}.json", Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(s"${event.payloadId}.json"), config.fastlyMapiApiKey)
+          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
         case (ItemType.Content, EventType.RetrievableUpdate) =>
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
