@@ -41,10 +41,6 @@ class Lambda {
           sendFastlyPurgeRequestForLiveblogAjaxFiles(event.payloadId)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
           sendFacebookNewstabPing(event.payloadId)
-
-        case other =>
-          // for now we only send purges for content, so ignore any other events
-          false
       }
     }
 
