@@ -117,6 +117,11 @@ class Lambda {
     response.code == 204
   }
 
+  /**
+   * If this content update is editorially interesting to Facebook Newstab ping their update end point.
+   *
+   * @return decision and/or ping completed successfully
+   */
   def sendFacebookNewstabPing(contentId: String): Boolean = {
     val contentPath = s"/$contentId"
     val contentWebUrl = s"https://www.theguardian.com${contentPath}"
