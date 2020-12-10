@@ -31,8 +31,8 @@ class Lambda {
 
         case (ItemType.Content, EventType.RetrievableUpdate) =>
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
           sendFastlyPurgeRequestForLiveblogAjaxFiles(event.payloadId)
+          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
 
         case other =>
           // for now we only send purges for content, so ignore any other events
@@ -67,8 +67,7 @@ class Lambda {
   }
 
   private def sendFastlyPurgeRequestForLiveblogAjaxFiles(contentId: String) = {
-    val ajaxFileForContentId = s"${contentId}.json"
-    sendFastlyPurgeRequest(ajaxFileForContentId, Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(ajaxFileForContentId), config.fastlyDotcomApiKey)
+    sendFastlyPurgeRequest(s"${contentId}.json", Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(s"${contentId}.json"), config.fastlyDotcomApiKey)
   }
 
   /**
