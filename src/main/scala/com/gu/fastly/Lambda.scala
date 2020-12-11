@@ -1,11 +1,14 @@
 package com.gu.fastly
 
-import org.apache.commons.codec.digest.DigestUtils
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
-import okhttp3._
+import com.gu.contentapi.client.model.v1.ContentType
+import com.gu.crier.model.event.v1.EventPayload.Content
 import com.gu.crier.model.event.v1._
+import okhttp3._
+import org.apache.commons.codec.digest.DigestUtils
+
 import scala.collection.JavaConverters._
 
 class Lambda {
@@ -26,8 +29,14 @@ class Lambda {
 
         case (ItemType.Content, EventType.Update | EventType.RetrievableUpdate) =>
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
-          sendFastlyPurgeRequestForLiveblogAjaxFiles(event.payloadId)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
+          // Decache liveblog ajax files
+          extractUpdateContentType(event) match {
+            case Some(ContentType.Liveblog) =>
+              sendFastlyPurgeRequestForLiveblogAjaxFiles(event.payloadId)
+            case _ =>
+              true
+          }
 
         case other =>
           // for now we only send purges for content, so ignore any other events
@@ -109,6 +118,17 @@ class Lambda {
     println(s"Sent ping request for content with ID [$contentId]. Response from Google AMP CDN: [${response.code}] [${response.body.string}]")
 
     response.code == 204
+  }
+
+  private def extractUpdateContentType(event: Event): Option[ContentType] = {
+    event.payload.flatMap { payload =>
+      payload.containedValue() match {
+        case content: Content =>
+          Some(content.content.`type`)
+        case retrievableContent: RetrievableContent =>
+          retrievableContent.contentType
+      }
+    }
   }
 
 }

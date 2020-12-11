@@ -12,7 +12,7 @@ libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-lambda-java-events" % "2.1.0",
   "com.amazonaws" % "aws-java-sdk-s3" % "1.11.339",
   "com.squareup.okhttp3" % "okhttp" % "3.2.0",
-  "com.gu" %% "content-api-models-scala" % "14.2",
+  "com.gu" %% "content-api-models-scala" % "15.9.7-SNAPSHOT",
   "com.gu" %% "thrift-serializer" % "4.0.0",
   "org.apache.logging.log4j" % "log4j-api" % Log4jVersion,
   "org.apache.logging.log4j" % "log4j-core" % Log4jVersion,
