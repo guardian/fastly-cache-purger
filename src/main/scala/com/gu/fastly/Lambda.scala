@@ -134,8 +134,12 @@ class Lambda {
       withNamespace("fastly-cache-purger").
       withMetricData(metric)
 
-    val cloudWatchClient = AmazonCloudWatchClientBuilder.defaultClient // TODO how to configure this? Then push up
-    cloudWatchClient.putMetricData(putMetricDataRequest)
+    try {
+      cloudWatchClient.putMetricData(putMetricDataRequest)
+    } catch {
+      case t: Throwable =>
+        println("Warning; cloudwatch metrics ping failed: " + t.getMessage)
+    }
   }
 
 }
