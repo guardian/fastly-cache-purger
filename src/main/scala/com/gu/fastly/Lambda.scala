@@ -1,5 +1,6 @@
 package com.gu.fastly
 
+import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
 import com.amazonaws.services.cloudwatch.model.{MetricDatum, PutMetricDataRequest, StandardUnit}
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
@@ -14,6 +15,7 @@ class Lambda {
 
   private val config = Config.load()
   private val httpClient = new OkHttpClient()
+  private val cloudWatchClient = AmazonCloudWatchClientBuilder.defaultClient
 
   def handle(event: KinesisEvent) {
     val rawRecords: List[Record] = event.getRecords.asScala.map(_.getKinesis).toList
@@ -123,7 +125,6 @@ class Lambda {
 
   // Count the number of purge requests we are making
   private def sendPurgeCountMetric: Unit = {
-    import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
     val metric = new MetricDatum()
       .withMetricName("purges")
       .withUnit(StandardUnit.None)
