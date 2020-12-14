@@ -4,13 +4,15 @@ scalaVersion := "2.12.8"
 name := "fastly-cache-purger"
 scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
+val awsClientVersion = "1.11.918"
 val Log4jVersion = "2.10.0"
 
 libraryDependencies ++= Seq(
   "com.amazonaws" % "amazon-kinesis-client" % "1.9.1",
   "com.amazonaws" % "aws-lambda-java-core" % "1.2.0",
   "com.amazonaws" % "aws-lambda-java-events" % "2.1.0",
-  "com.amazonaws" % "aws-java-sdk-s3" % "1.11.339",
+  "com.amazonaws" % "aws-java-sdk-cloudwatch" % awsClientVersion,
+  "com.amazonaws" % "aws-java-sdk-s3" % awsClientVersion,
   "com.squareup.okhttp3" % "okhttp" % "3.2.0",
   "com.gu" %% "content-api-models-scala" % "14.2",
   "com.gu" %% "thrift-serializer" % "4.0.0",
