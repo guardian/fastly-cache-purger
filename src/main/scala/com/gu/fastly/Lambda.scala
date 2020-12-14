@@ -1,11 +1,13 @@
 package com.gu.fastly
 
-import org.apache.commons.codec.digest.DigestUtils
+import com.amazonaws.services.cloudwatch.model.{MetricDatum, PutMetricDataRequest, StandardUnit}
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
-import okhttp3._
 import com.gu.crier.model.event.v1._
+import okhttp3._
+import org.apache.commons.codec.digest.DigestUtils
+
 import scala.collection.JavaConverters._
 
 class Lambda {
@@ -92,6 +94,9 @@ class Lambda {
     println(s"Sent $purgeType purge request for content with ID [$contentId], service with ID [$serviceId] and surrogate key [$surrogateKey]. Response from Fastly API: [${response.code}] [${response.body.string}]")
 
     val purged = response.code == 200
+
+    sendPurgeCountMetric
+
     purged
   }
   /**
@@ -114,6 +119,22 @@ class Lambda {
     println(s"Sent ping request for content with ID [$contentId]. Response from Google AMP CDN: [${response.code}] [${response.body.string}]")
 
     response.code == 204
+  }
+
+  // Count the number of purge requests we are making
+  private def sendPurgeCountMetric: Unit = {
+    import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
+    val metric = new MetricDatum()
+      .withMetricName("purges")
+      .withUnit(StandardUnit.None)
+      .withValue(1)
+
+    val putMetricDataRequest = new PutMetricDataRequest().
+      withNamespace("fastly-cache-purger").
+      withMetricData(metric)
+
+    val cloudWatchClient = AmazonCloudWatchClientBuilder.defaultClient // TODO how to configure this? Then push up
+    cloudWatchClient.putMetricData(putMetricDataRequest)
   }
 
 }
