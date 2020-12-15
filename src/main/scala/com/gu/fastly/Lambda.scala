@@ -1,10 +1,12 @@
 package com.gu.fastly
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
-import com.amazonaws.services.cloudwatch.model.{MetricDatum, PutMetricDataRequest, StandardUnit}
+import com.amazonaws.services.cloudwatch.model.{ Dimension, MetricDatum, PutMetricDataRequest, StandardUnit }
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
+import com.gu.contentapi.client.model.v1.ContentType
+import com.gu.crier.model.event.v1.EventPayload.Content
 import com.gu.crier.model.event.v1._
 import io.circe.generic.auto._
 import io.circe.parser._
@@ -31,15 +33,17 @@ class Lambda {
           sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
 
         case (ItemType.Content, EventType.Update) =>
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
-          sendFastlyPurgeRequestForLiveblogAjaxFiles(event.payloadId)
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
+          val contentType = extractUpdateContentType(event)
+          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
+          sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
+          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey, contentType)
           //sendFacebookNewstabPing(event.payloadId)
 
         case (ItemType.Content, EventType.RetrievableUpdate) =>
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
-          sendFastlyPurgeRequestForLiveblogAjaxFiles(event.payloadId)
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
+          val contentType = extractUpdateContentType(event)
+          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
+          sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
+          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey, contentType)
           //sendFacebookNewstabPing(event.payloadId)
 
         case other =>
@@ -74,8 +78,8 @@ class Lambda {
       false
   }
 
-  private def sendFastlyPurgeRequestForLiveblogAjaxFiles(contentId: String) = {
-    sendFastlyPurgeRequest(s"${contentId}.json", Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(s"${contentId}.json"), config.fastlyDotcomApiKey)
+  private def sendFastlyPurgeRequestForAjaxFile(contentId: String, contentType: Option[ContentType]) = {
+    sendFastlyPurgeRequest(s"${contentId}.json", Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(s"${contentId}.json"), config.fastlyDotcomApiKey, contentType)
   }
 
   /**
@@ -83,7 +87,7 @@ class Lambda {
    *
    * @return whether a piece of content was purged or not
    */
-  def sendFastlyPurgeRequest(contentId: String, purgeType: PurgeType, serviceId: String, surrogateKey: String, fastlyApiKey: String): Boolean = {
+  def sendFastlyPurgeRequest(contentId: String, purgeType: PurgeType, serviceId: String, surrogateKey: String, fastlyApiKey: String, contentType: Option[ContentType] = None): Boolean = {
     val url = s"https://api.fastly.com/service/$serviceId/purge/$surrogateKey"
 
     val requestBuilder = new Request.Builder()
@@ -101,7 +105,7 @@ class Lambda {
 
     val purged = response.code == 200
 
-    sendPurgeCountMetric
+    sendPurgeCountMetric(contentType)
 
     purged
   }
@@ -127,11 +131,34 @@ class Lambda {
     response.code == 204
   }
 
+  private def extractUpdateContentType(event: Event): Option[ContentType] = {
+    // An Update event should contain a Content payload with a content type.
+    // A RetrievableContent event contains a content type hint and a link to the full content
+    event.payload.flatMap { payload =>
+      payload.containedValue() match {
+        case content: Content =>
+          Some(content.content.`type`)
+        case retrievableContent: RetrievableContent =>
+          retrievableContent.contentType
+      }
+    }
+  }
+
   // Count the number of purge requests we are making
-  private def sendPurgeCountMetric: Unit = {
+  private def sendPurgeCountMetric(contentType: Option[ContentType]): Unit = {
+    import scala.collection.JavaConverters._
+    val contentTypeDimension = contentType.map { ct =>
+      new Dimension()
+        .withName("contentType")
+        .withValue(ct.name);
+    }
+
+    val dimensions = Seq(contentTypeDimension).flatten
+
     val metric = new MetricDatum()
       .withMetricName("purges")
       .withUnit(StandardUnit.None)
+      .withDimensions(dimensions.asJavaCollection)
       .withValue(1)
 
     val putMetricDataRequest = new PutMetricDataRequest().
