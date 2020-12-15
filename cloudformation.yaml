@@ -72,6 +72,13 @@ Resources:
                 - s3:ListBucket
               Resource: !Sub arn:aws:s3:::${ConfigBucket}/*
               Effect: Allow
+        - PolicyName: AllowPutMetrics
+          PolicyDocument:
+            Statement:
+              Action:
+                - cloudwatch:PutMetricData
+              Resource: "*"
+              Effect: Allow
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
