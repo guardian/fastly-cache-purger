@@ -41,6 +41,9 @@ class Lambda {
           sendFastlyPurgeRequestForLiveblogAjaxFiles(event.payloadId)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
           sendFacebookNewstabPing(event.payloadId)
+
+        case _ =>
+          true
       }
     }
 
