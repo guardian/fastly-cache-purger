@@ -158,7 +158,7 @@ class Lambda {
    */
   def sendFacebookNewstabPing(contentId: String): Boolean = {
     val contentPath = s"/$contentId"
-    val contentWebUrl = s"https://www.theguardian.com${contentPath}"
+    val contentWebUrl = webUrlFor(contentId)
 
     // This is an interesting question which will almost certainly by iterated on.
     // Basing this decision entirely on the contentId is unlikely to age well.
@@ -189,18 +189,7 @@ class Lambda {
       // Soft evaluate the Facebook response
       // Their documentation does not specifically mention response codes.
       // Lets evaluate and log our interpretation of the response for now
-      val wasSuccessful = response.code match {
-        case 200 =>
-          decode[FacebookNewstabResponse](response.body.string()).fold({ error =>
-            println("Failed to parse Facebook Newstab response: " + error.getMessage)
-            false
-          }, { facebookResponse =>
-            facebookResponse.scopes.get(scope).contains("INDEXED")
-          })
-        case _ =>
-          println("Received unexpected response code from Facebook: " + _)
-          false
-      }
+      val wasSuccessful = isExpectedFacebookNewstabResponse(response, scope, "INDEXED")
 
       println(s"Sent Facebook Newstab ping request for content with url [$contentWebUrl]. " +
         s"Response from Facebook: [${response.code}] [${response.body.string}]. " +
@@ -222,7 +211,7 @@ class Lambda {
    */
   def sendFacebookNewsitemDenylistRequest(contentId: String): Boolean = {
     val contentPath = s"/$contentId"
-    val contentWebUrl = s"https://www.theguardian.com${contentPath}"
+    val contentWebUrl = webUrlFor(contentId)
 
     // This is an interesting question which will almost certainly by iterated on.
     // Basing this decision entirely on the contentId is unlikely to age well.
@@ -253,18 +242,7 @@ class Lambda {
       // Soft evaluate the Facebook response
       // Their documentation does not specifically mention response codes.
       // Lets evaluate and log our interpretation of the response for now
-      val wasSuccessful = response.code match {
-        case 200 =>
-          decode[FacebookNewstabResponse](response.body.string()).fold({ error =>
-            println("Failed to parse Facebook Newstab response: " + error.getMessage)
-            false
-          }, { facebookResponse =>
-            facebookResponse.scopes.get(scope).contains("DENYLISTED")
-          })
-        case _ =>
-          println("Received unexpected response code from Facebook: " + _)
-          false
-      }
+      val wasSuccessful = isExpectedFacebookNewstabResponse(response, scope, "DENYLISTED")
 
       println(s"Sent Facebook Newstab denylist request for content with url [$contentWebUrl]. " +
         s"Response from Facebook: [${response.code}] [${response.body.string}]. " +
@@ -274,6 +252,26 @@ class Lambda {
 
     } else {
       true
+    }
+  }
+
+  private def webUrlFor(contentId: String) = {
+    val contentPath = s"/$contentId"
+    s"https://www.theguardian.com${contentPath}"
+  }
+
+  private def isExpectedFacebookNewstabResponse(response: Response, scope: String, expected: String): Boolean = {
+    response.code match {
+      case 200 =>
+        decode[FacebookNewstabResponse](response.body.string()).fold({ error =>
+          println("Failed to parse Facebook Newstab response: " + error.getMessage)
+          false
+        }, { facebookResponse =>
+          facebookResponse.scopes.get(scope).contains(expected)
+        })
+      case _ =>
+        println("Received unexpected response code from Facebook: " + _)
+        false
     }
   }
 
