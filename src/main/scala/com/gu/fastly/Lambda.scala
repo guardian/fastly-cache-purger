@@ -1,7 +1,7 @@
 package com.gu.fastly
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
-import com.amazonaws.services.cloudwatch.model.{MetricDatum, PutMetricDataRequest, StandardUnit}
+import com.amazonaws.services.cloudwatch.model.{ MetricDatum, PutMetricDataRequest, StandardUnit }
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
@@ -157,16 +157,8 @@ class Lambda {
    * @return decision and/or ping completed successfully
    */
   def sendFacebookNewstabPing(contentId: String): Boolean = {
-    val contentPath = s"/$contentId"
-    val contentWebUrl = webUrlFor(contentId)
-
-    // This is an interesting question which will almost certainly by iterated on.
-    // Basing this decision entirely on the contentId is unlikely to age well.
-    // Our opening move for the proof of concept is to dibble a small amount of content which is unlikely to be taken down.
-    // Travel articles sound safe.
-    val contentIsInterestingToFacebookNewstab = contentId.contains("travel/2020")
-
-    if (contentIsInterestingToFacebookNewstab) {
+    if (contentIsInterestingToFacebookNewstab(contentId)) {
+      val contentWebUrl = webUrlFor(contentId)
       val scope = config.facebookNewsTabScope
 
       //POST endpoint with URL encoded parameters as per New Tab documentation
@@ -210,16 +202,8 @@ class Lambda {
    * @return decision and/or denylist ping completed successfully
    */
   def sendFacebookNewsitemDenylistRequest(contentId: String): Boolean = {
-    val contentPath = s"/$contentId"
-    val contentWebUrl = webUrlFor(contentId)
-
-    // This is an interesting question which will almost certainly by iterated on.
-    // Basing this decision entirely on the contentId is unlikely to age well.
-    // Our opening move for the proof of concept is to dibble a small amount of content which is unlikely to be taken down.
-    // Travel articles sound safe.
-    val contentIsInterestingToFacebookNewstab = contentId.contains("travel/2020")
-
-    if (contentIsInterestingToFacebookNewstab) {
+    if (contentIsInterestingToFacebookNewstab(contentId)) {
+      val contentWebUrl = webUrlFor(contentId)
       val scope = config.facebookNewsTabScope
 
       //POST endpoint with URL encoded parameters as per New Tab documentation
@@ -253,6 +237,14 @@ class Lambda {
     } else {
       true
     }
+  }
+
+  private def contentIsInterestingToFacebookNewstab(contentId: String) = {
+    // This is an interesting question which will almost certainly be iterated on.
+    // Basing this decision entirely on the contentId is unlikely to age well.
+    // Our opening move for the proof of concept is to dribble a small amount of content which is unlikely to be taken down.
+    // Travel articles sound safe.
+    contentId.contains("travel/2020")
   }
 
   private def webUrlFor(contentId: String) = {
