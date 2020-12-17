@@ -42,8 +42,9 @@ class Lambda {
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
           sendFacebookNewstabPing(event.payloadId)
 
-        case _ =>
-          true
+        case other =>
+          // for now we only send purges for content, so ignore any other events
+          false
       }
     }
 
@@ -104,7 +105,6 @@ class Lambda {
 
     purged
   }
-
   /**
    * Send a ping request to Google AMP to refresh the cache.
    * See https://developers.google.com/amp/cache/update-ping
