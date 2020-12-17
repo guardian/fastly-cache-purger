@@ -32,14 +32,7 @@ class Lambda {
         case (ItemType.Content, EventType.Delete) =>
           sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
 
-        case (ItemType.Content, EventType.Update) =>
-          val contentType = extractUpdateContentType(event)
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
-          sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey, contentType)
-          //sendFacebookNewstabPing(event.payloadId)
-
-        case (ItemType.Content, EventType.RetrievableUpdate) =>
+        case (ItemType.Content, EventType.Update | EventType.RetrievableUpdate) =>
           val contentType = extractUpdateContentType(event)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
           sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
