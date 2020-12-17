@@ -29,6 +29,7 @@ class Lambda {
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Delete) =>
           sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
+          sendFacebookNewsitemDenylistRequest(event.payloadId)
 
         case (ItemType.Content, EventType.Update) =>
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
