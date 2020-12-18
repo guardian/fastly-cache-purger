@@ -69,8 +69,8 @@ class Lambda {
 
   private def sendFastlyPurgeRequestAndAmpPingRequest(contentId: String, purgeType: PurgeType, serviceId: String, surrogateKey: String, fastlyApiKey: String): Boolean = {
     if (sendFastlyPurgeRequest(contentId, purgeType, serviceId, surrogateKey, fastlyApiKey))
-      sendAmpPingRequest(contentId)
-    else
+      sendAmpDeleteRequest(contentId)
+     else
       false
   }
 
@@ -105,6 +105,7 @@ class Lambda {
 
     purged
   }
+
   /**
    * Send a ping request to Google AMP to refresh the cache.
    * See https://developers.google.com/amp/cache/update-ping
@@ -124,6 +125,17 @@ class Lambda {
     val response = httpClient.newCall(request).execute()
     println(s"Sent ping request for content with ID [$contentId]. Response from Google AMP CDN: [${response.code}] [${response.body.string}]")
 
+    response.code == 204
+  }
+
+  // https://developers.google.com/amp/cache/update-cache
+  private def sendAmpDeleteRequest(contentId: String): Boolean = {
+    val ts = 1608283431L.toString // hard coded value for the moment
+    val sig = "BEE639538B7A459BBBC7C483A0990073" // hard coded value for the moment
+    val requestUrl = s"https://amp-theguardian-com.cdn.ampproject.org/update-cache/c/s/amp.theguardian.com/${contentId}?amp_action=flush&amp_ts=${ts}&amp_url_signature=${sig}"
+    val request = new Request.Builder().url(requestUrl).get().build()
+    val response = httpClient.newCall(request).execute()
+    println(s"Sent amp delete request [contentID: $contentId] [ts: $ts] [sig: ${sig}] [url: ${requestUrl}]. Response from Google AMP CDN: [${response.code}] [${response.body.string}]")
     response.code == 204
   }
 
