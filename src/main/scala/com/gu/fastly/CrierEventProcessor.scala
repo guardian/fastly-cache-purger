@@ -26,7 +26,7 @@ object CrierEventProcessor {
     val uniqueContentIds = updateContentIds.toSet
     println("Batch contained " + updateContentIds.size + " content updates ids and " + uniqueContentIds.size + " unique contentIds")
     if (updateContentIds.size != uniqueContentIds.size) {
-      println("Batchmay contain duplicate content ids")
+      println("Batch may contain duplicate content ids")
     }
 
     val processingResults: Iterable[Boolean] = records.flatMap { record =>
