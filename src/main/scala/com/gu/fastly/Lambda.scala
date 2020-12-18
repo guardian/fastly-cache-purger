@@ -1,7 +1,7 @@
 package com.gu.fastly
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
-import com.amazonaws.services.cloudwatch.model.{ MetricDatum, PutMetricDataRequest, StandardUnit }
+import com.amazonaws.services.cloudwatch.model.{MetricDatum, PutMetricDataRequest, StandardUnit}
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
@@ -25,7 +25,7 @@ class Lambda {
 
     println(s"Processing ${userRecords.size} records ...")
 
-    CrierEventProcessor.process(userRecords.asScala, cloudWatchClient) { event =>
+    CrierEventProcessor.process(userRecords.asScala) { event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Delete) =>
           sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
@@ -34,13 +34,13 @@ class Lambda {
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
           sendFastlyPurgeRequestForLiveblogAjaxFiles(event.payloadId)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
-        //sendFacebookNewstabPing(event.payloadId)
+          //sendFacebookNewstabPing(event.payloadId)
 
         case (ItemType.Content, EventType.RetrievableUpdate) =>
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
           sendFastlyPurgeRequestForLiveblogAjaxFiles(event.payloadId)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey)
-        //sendFacebookNewstabPing(event.payloadId)
+          //sendFacebookNewstabPing(event.payloadId)
 
         case other =>
           // for now we only send purges for content, so ignore any other events
