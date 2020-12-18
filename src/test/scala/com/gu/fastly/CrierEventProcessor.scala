@@ -25,13 +25,13 @@ class CrierEventProcessorSpec extends WordSpecLike with MustMatchers with OneIns
     "properly deserialize a compressed event" in {
       val bytes = ThriftSerializer.serializeToBytes(event, Some(ZstdType), None)
       val record = new Record().withData(ByteBuffer.wrap(bytes))
-      CrierEventProcessor.process(List(record), null)(event => true) mustEqual 1
+      CrierEventProcessor.process(List(record))(event => true) mustEqual 1
     }
 
     "properly deserialize a non-compressed event" in {
       val bytes = ThriftSerializer.serializeToBytes(event, None, None)
       val record = new Record().withData(ByteBuffer.wrap(bytes))
-      CrierEventProcessor.process(List(record), null)(event => true) mustEqual 1
+      CrierEventProcessor.process(List(record))(event => true) mustEqual 1
     }
   }
 }
