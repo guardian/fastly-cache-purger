@@ -14,7 +14,7 @@ object CrierEventProcessor {
         purge(e)
       }.recover {
         case error =>
-          println("Failed to deserialize Crier event from Kinesis record. Skipping.")
+          println("Failed to deserialize Crier event from Kinesis record. Skipping: " + error.getMessage)
           false
       }.toOption
     }
