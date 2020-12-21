@@ -1,12 +1,11 @@
 package com.gu.fastly
 
 import com.amazonaws.services.kinesis.model.Record
-import com.gu.crier.model.event.v1.{Event, EventPayload, EventType, ItemType, RetrievableContent}
+import com.gu.crier.model.event.v1._
 import com.gu.thrift.serializer._
-
-import java.nio.ByteBuffer
 import org.scalatest.{MustMatchers, OneInstancePerTest, WordSpecLike}
 
+import java.nio.ByteBuffer
 import scala.util.Success
 
 class CrierDeserializerSpec extends WordSpecLike with MustMatchers with OneInstancePerTest {
@@ -36,5 +35,13 @@ class CrierDeserializerSpec extends WordSpecLike with MustMatchers with OneInsta
       val eventRecord = new Record().withData(ByteBuffer.wrap(bytes))
       CrierEventDeserializer.eventFromRecord(eventRecord) mustEqual Success(event)
     }
+
+    "can deserialize list of user records" in {
+      val bytes = ThriftSerializer.serializeToBytes(event, None, None)
+      val eventRecord = new Record().withData(ByteBuffer.wrap(bytes))
+      val events = CrierEventDeserializer.eventsFromRecords(Seq(eventRecord))
+      events mustEqual Seq(event)
+    }
+
   }
 }

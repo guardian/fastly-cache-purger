@@ -8,14 +8,12 @@ import com.amazonaws.services.lambda.runtime.events.KinesisEvent
 import com.gu.contentapi.client.model.v1.ContentType
 import com.gu.crier.model.event.v1.EventPayload.Content
 import com.gu.crier.model.event.v1._
-import com.gu.thrift.serializer.ThriftDeserializer
 import io.circe.generic.auto._
 import io.circe.parser._
 import okhttp3._
 import org.apache.commons.codec.digest.DigestUtils
 
 import scala.collection.JavaConverters._
-import scala.util.{ Failure, Success, Try }
 
 class Lambda {
 
@@ -29,16 +27,7 @@ class Lambda {
 
     println(s"Processing ${userRecords.size} records ...")
 
-    val events = userRecords.asScala.flatMap { record =>
-      CrierEventDeserializer.eventFromRecord(record) match {
-        case Success(event) =>
-          Some(event)
-        case Failure(error) =>
-          println("Failed to deserialize Crier event from Kinesis record. Skipping.")
-          None
-      }
-    }
-
+    val events = CrierEventDeserializer.eventsFromRecords(userRecords.asScala)
     val distinctEvents = events.distinct
     println(s"Processing ${distinctEvents.size} distinct events from batch of ${events.size} events...")
 
