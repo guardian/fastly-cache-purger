@@ -7,7 +7,7 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import scala.util.Try
 
 case class Config(fastlyDotcomServiceId: String, fastlyMapiServiceId: String, fastlyApiNextgenServiceId: String, fastlyDotcomApiKey: String, fastlyMapiApiKey: String,
-  facebookNewsTabAccessToken: String, facebookNewsTabScope: String)
+                  facebookNewsTabAccessToken: String, facebookNewsTabScope: String)
 
 object Config {
 

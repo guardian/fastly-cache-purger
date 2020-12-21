@@ -1,17 +1,14 @@
 package com.gu.fastly
 
 import com.amazonaws.services.kinesis.model.Record
-import com.gu.crier.model.event.v1.{Event, EventPayload, EventType, ItemType, RetrievableContent}
+import com.gu.crier.model.event.v1.{ Event, EventPayload, EventType, ItemType, RetrievableContent }
 import com.gu.thrift.serializer._
-
 import java.nio.ByteBuffer
-import org.scalatest.{MustMatchers, OneInstancePerTest, WordSpecLike}
+import org.scalatest.{ MustMatchers, OneInstancePerTest, WordSpecLike }
 
-import scala.util.Success
+class CrierEventProcessorSpec extends WordSpecLike with MustMatchers with OneInstancePerTest {
 
-class CrierDeserializerSpec extends WordSpecLike with MustMatchers with OneInstancePerTest {
-
-  "Deserializer must" must {
+  "Crier Event Processor must" must {
     val event = Event(
       payloadId = "1234567890",
       eventType = EventType.Update,
@@ -27,14 +24,14 @@ class CrierDeserializerSpec extends WordSpecLike with MustMatchers with OneInsta
 
     "properly deserialize a compressed event" in {
       val bytes = ThriftSerializer.serializeToBytes(event, Some(ZstdType), None)
-      val compressedEventRecord = new Record().withData(ByteBuffer.wrap(bytes))
-      CrierEventDeserializer.eventFromRecord(compressedEventRecord) mustEqual Success(event)
+      val record = new Record().withData(ByteBuffer.wrap(bytes))
+      CrierEventProcessor.process(List(record))(event => true) mustEqual 1
     }
 
     "properly deserialize a non-compressed event" in {
       val bytes = ThriftSerializer.serializeToBytes(event, None, None)
-      val eventRecord = new Record().withData(ByteBuffer.wrap(bytes))
-      CrierEventDeserializer.eventFromRecord(eventRecord) mustEqual Success(event)
+      val record = new Record().withData(ByteBuffer.wrap(bytes))
+      CrierEventProcessor.process(List(record))(event => true) mustEqual 1
     }
   }
 }
