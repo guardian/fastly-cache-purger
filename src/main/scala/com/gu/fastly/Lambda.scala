@@ -30,7 +30,7 @@ class Lambda {
     println(s"Processing ${userRecords.size} records ...")
 
     val events = userRecords.asScala.flatMap { record =>
-      eventFromRecord(record) match {
+      CrierEventDeserializer.eventFromRecord(record) match {
         case Success(event) =>
           Some(event)
         case Failure(error) =>
@@ -245,10 +245,6 @@ class Lambda {
     } else {
       true
     }
-  }
-
-  private def eventFromRecord(record: Record): Try[Event] = {
-    ThriftDeserializer.deserialize(record.getData.array)(Event)
   }
 
   case class FacebookNewstabResponse(url: String, scopes: Map[String, String])
