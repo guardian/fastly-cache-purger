@@ -39,7 +39,10 @@ class Lambda {
       }
     }
 
-    CrierEventProcessor.process(events) { event =>
+    val distinctEvents = events.distinct
+    println(s"Processing ${distinctEvents.size} distinct events from batch of ${events.size} events...")
+
+    CrierEventProcessor.process(distinctEvents) { event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Delete) =>
           sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
