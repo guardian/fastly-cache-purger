@@ -19,11 +19,6 @@ object CrierEventProcessor {
       }
     }
 
-    // During initial testing of model update fail the lambda if there are deserialization failures.
-    if (crierEvents.size < records.size) {
-      throw new RuntimeException("Rejecting batch due to deserialization errors")
-    }
-
     crierEvents.map { event =>
       purge(event)
     }
