@@ -1,14 +1,17 @@
 package com.gu.fastly
 
 import com.amazonaws.services.kinesis.model.Record
-import com.gu.crier.model.event.v1.{ Event, EventPayload, EventType, ItemType, RetrievableContent }
+import com.gu.contentapi.client.model.v1.ContentType.Article
+import com.gu.crier.model.event.v1.{Event, EventPayload, EventType, ItemType, RetrievableContent}
 import com.gu.thrift.serializer._
+
 import java.nio.ByteBuffer
-import org.scalatest.{ MustMatchers, OneInstancePerTest, WordSpecLike }
+import org.scalatest.{MustMatchers, OneInstancePerTest, WordSpecLike}
 
 class CrierEventProcessorSpec extends WordSpecLike with MustMatchers with OneInstancePerTest {
 
   "Crier Event Processor must" must {
+
     val event = Event(
       payloadId = "1234567890",
       eventType = EventType.Update,
@@ -18,7 +21,9 @@ class CrierEventProcessorSpec extends WordSpecLike with MustMatchers with OneIns
         id = "0987654321",
         capiUrl = "http://www.theguardian.com/",
         lastModifiedDate = Some(8888888888L),
-        internalRevision = Some(444444)
+        internalRevision = Some(444444),
+        contentType = Some(Article),
+        aliasPaths = Some(Seq("123", "abc"))
       )))
     )
 
