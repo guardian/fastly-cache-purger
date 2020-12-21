@@ -15,7 +15,7 @@ libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-java-sdk-cloudwatch" % awsClientVersion,
   "com.amazonaws" % "aws-java-sdk-s3" % awsClientVersion,
   "com.squareup.okhttp3" % "okhttp" % "3.2.0",
-  "com.gu" %% "content-api-models-scala" % "15.9.7",
+  "com.gu" %% "content-api-models-scala" % "14.2",
   "com.gu" %% "thrift-serializer" % "4.0.0",
   "org.apache.logging.log4j" % "log4j-api" % Log4jVersion,
   "org.apache.logging.log4j" % "log4j-core" % Log4jVersion,
