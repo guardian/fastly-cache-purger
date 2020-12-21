@@ -3,22 +3,27 @@ package com.gu.fastly
 import com.amazonaws.services.kinesis.model.Record
 import com.gu.crier.model.event.v1.Event
 import com.gu.thrift.serializer.ThriftDeserializer
-import scala.util.Try
+
+import scala.util.{Failure, Success, Try}
 
 object CrierEventProcessor {
 
   def process(records: Seq[Record])(purge: Event => Boolean) = {
-    val processingResults: Iterable[Boolean] = records.flatMap { record =>
-      val event = eventFromRecord(record)
-      event.map { e =>
-        purge(e)
-      }.recover {
-        case error =>
+    val crierEvents = records.flatMap { record =>
+      eventFromRecord(record) match {
+        case Success(event) =>
+          Some(event)
+        case Failure(error) =>
           println("Failed to deserialize Crier event from Kinesis record. Skipping: " + error.getMessage)
-          false
-      }.toOption
+          None
+      }
     }
-    val purgedCount: Int = processingResults.count(_ == true)
+
+    crierEvents.map { event =>
+      purge(event)
+    }
+
+    val purgedCount: Int = crierEvents.size
     println(s"Successfully purged $purgedCount pieces of content")
     purgedCount
   }
