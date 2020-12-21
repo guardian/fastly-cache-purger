@@ -14,7 +14,7 @@ object CrierEventDeserializer {
         case Success(event) =>
           Some(event)
         case Failure(error) =>
-          println("Failed to deserialize Crier event from Kinesis record. Skipping.")
+          println("Failed to deserialize Crier event from Kinesis record. Skipping: " + error.getMessage)
           None
       }
     }

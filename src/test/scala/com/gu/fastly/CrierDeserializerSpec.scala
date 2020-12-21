@@ -39,7 +39,8 @@ class CrierDeserializerSpec extends WordSpecLike with MustMatchers with OneInsta
     "can deserialize list of user records" in {
       val bytes = ThriftSerializer.serializeToBytes(event, None, None)
       val eventRecord = new Record().withData(ByteBuffer.wrap(bytes))
-      val events = CrierEventDeserializer.eventsFromRecords(Seq(eventRecord))
+      val badRecord = new Record().withData(ByteBuffer.wrap("This is not an event record".getBytes()))
+      val events = CrierEventDeserializer.eventsFromRecords(Seq(eventRecord, badRecord))
       events mustEqual Seq(event)
     }
 
