@@ -7,24 +7,14 @@ import scala.util.Try
 
 object CrierEventProcessor {
 
-  def process(records: Seq[Record])(purge: Event => Boolean) = {
-    val processingResults: Iterable[Boolean] = records.flatMap { record =>
-      val event = eventFromRecord(record)
-      event.map { e =>
-        purge(e)
-      }.recover {
-        case error =>
-          println("Failed to deserialize Crier event from Kinesis record. Skipping.")
-          false
-      }.toOption
+  def process(events: Seq[Event])(purge: Event => Boolean) = {
+    val processingResults: Iterable[Boolean] = events.map { event =>
+      purge(event)
     }
+
     val purgedCount: Int = processingResults.count(_ == true)
     println(s"Successfully purged $purgedCount pieces of content")
     purgedCount
-  }
-
-  private def eventFromRecord(record: Record): Try[Event] = {
-    ThriftDeserializer.deserialize(record.getData.array)(Event)
   }
 
 }
