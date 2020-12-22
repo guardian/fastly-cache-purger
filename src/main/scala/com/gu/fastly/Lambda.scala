@@ -1,7 +1,7 @@
 package com.gu.fastly
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
-import com.amazonaws.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataRequest, StandardUnit}
+import com.amazonaws.services.cloudwatch.model.{ Dimension, MetricDatum, PutMetricDataRequest, StandardUnit }
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
@@ -13,12 +13,20 @@ import okhttp3._
 import org.apache.commons.codec.digest.DigestUtils
 
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 
 class Lambda {
 
   private val config = Config.load()
   private val httpClient = new OkHttpClient()
+  private val facebookHttpClient = {
+    new OkHttpClient.Builder()
+      .connectTimeout(1000, TimeUnit.MILLISECONDS)
+      .readTimeout(1000, TimeUnit.MILLISECONDS)
+      .build()
+  }
+
   private val cloudWatchClient = AmazonCloudWatchClientBuilder.defaultClient
 
   def handle(event: KinesisEvent) {
@@ -213,7 +221,7 @@ class Lambda {
           .post(EmptyJsonBody)
           .build()
 
-        val response = httpClient.newCall(request).execute()
+        val response = facebookHttpClient.newCall(request).execute()
 
         // Soft evaluate the Facebook response
         // Their documentation does not specifically mention response codes.
