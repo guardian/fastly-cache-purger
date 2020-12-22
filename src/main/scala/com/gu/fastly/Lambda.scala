@@ -28,7 +28,7 @@ class Lambda {
     val events = CrierEventDeserializer.deserializeEvents(userRecords.asScala)
 
     val distinctEvents = UpdateDeduplicator.filterAndDeduplicateContentEvents(events)
-    println(s"Processing ${distinctEvents.size} distinct events from batch of ${events.size} events...")
+    println(s"Processing ${distinctEvents.size} distinct content events from batch of ${events.size} events...")
 
     CrierEventProcessor.process(distinctEvents) { event =>
       (event.itemType, event.eventType) match {
