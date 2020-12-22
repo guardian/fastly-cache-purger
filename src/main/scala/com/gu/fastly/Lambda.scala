@@ -29,9 +29,6 @@ class Lambda {
 
     val distinctEvents = UpdateDeduplicator.filterAndDeduplicateContentEvents(events)
     println(s"Processing ${distinctEvents.size} distinct content events from batch of ${events.size} events...")
-    if (distinctEvents.size < events.size) {
-      println("Deduplicated (" + distinctEvents.map(_.payloadId).mkString(", ") + ") to: (" + events.map(_.payloadId).mkString(", ") + ")")
-    }
 
     CrierEventProcessor.process(distinctEvents) { event =>
       (event.itemType, event.eventType) match {

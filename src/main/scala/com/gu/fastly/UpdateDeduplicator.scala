@@ -23,6 +23,10 @@ object UpdateDeduplicator {
     val deduplicatedContentUpdateEvents = updateEvents.map(updateEvent =>
       updateEvent.payloadId -> updateEvent).toMap.values.toSeq
 
+    if (deduplicatedContentUpdateEvents.size < updateEvents.size) {
+      println("Deduplicated content update events (" + events.map(_.payloadId).mkString(", ") + ") to: (" + deduplicatedContentUpdateEvents.map(_.payloadId).mkString(", ") + ")")
+    }
+
     otherContentEvents ++ deduplicatedContentUpdateEvents
   }
 
