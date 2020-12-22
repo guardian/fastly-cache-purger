@@ -22,8 +22,8 @@ class Lambda {
   private val httpClient = new OkHttpClient()
   private val facebookHttpClient = {
     new OkHttpClient.Builder()
-      .connectTimeout(5000, TimeUnit.MILLISECONDS)
-      .readTimeout(5000, TimeUnit.MILLISECONDS)
+      .connectTimeout(10000, TimeUnit.MILLISECONDS)
+      .readTimeout(10000, TimeUnit.MILLISECONDS)
       .build()
   }
 
