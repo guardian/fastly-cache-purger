@@ -2,11 +2,11 @@ package com.gu.fastly
 
 import com.amazonaws.services.kinesis.model.Record
 import com.gu.contentapi.client.model.v1.ContentType.Article
-import com.gu.crier.model.event.v1.{Event, EventPayload, EventType, ItemType, RetrievableContent}
+import com.gu.crier.model.event.v1.{ Event, EventPayload, EventType, ItemType, RetrievableContent }
 import com.gu.thrift.serializer._
 
 import java.nio.ByteBuffer
-import org.scalatest.{MustMatchers, OneInstancePerTest, WordSpecLike}
+import org.scalatest.{ MustMatchers, OneInstancePerTest, WordSpecLike }
 
 import scala.util.Success
 

@@ -1,7 +1,7 @@
 package com.gu.fastly
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
-import com.amazonaws.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataRequest, StandardUnit}
+import com.amazonaws.services.cloudwatch.model.{ Dimension, MetricDatum, PutMetricDataRequest, StandardUnit }
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
@@ -13,7 +13,6 @@ import okhttp3._
 import org.apache.commons.codec.digest.DigestUtils
 
 import scala.collection.JavaConverters._
-import scala.util.{ Failure, Success, Try }
 
 class Lambda {
 
@@ -26,16 +25,7 @@ class Lambda {
     val userRecords = UserRecord.deaggregate(rawRecords.asJava)
 
     println(s"Processing ${userRecords.size} records ...")
-
-    val events = userRecords.asScala.flatMap { record =>
-      CrierEventDeserializer.eventFromRecord(record) match {
-        case Success(event) =>
-          Some(event)
-        case Failure(error) =>
-          println("Failed to deserialize Crier event from Kinesis record. Skipping.")
-          None
-      }
-    }
+    val events = CrierEventDeserializer.deserializeEvents(userRecords.asScala)
 
     val distinctEvents = events.distinct
     println(s"Processing ${distinctEvents.size} distinct events from batch of ${events.size} events...")
@@ -57,7 +47,7 @@ class Lambda {
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
           sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey, contentType)
-          //sendFacebookNewstabPing(event.payloadId)
+        //sendFacebookNewstabPing(event.payloadId)
 
         case other =>
           // for now we only send purges for content, so ignore any other events
