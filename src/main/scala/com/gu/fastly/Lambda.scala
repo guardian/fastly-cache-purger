@@ -12,12 +12,21 @@ import io.circe.parser._
 import okhttp3._
 import org.apache.commons.codec.digest.DigestUtils
 
+import java.io.IOException
+import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 
 class Lambda {
 
   private val config = Config.load()
   private val httpClient = new OkHttpClient()
+  private val facebookHttpClient = {
+    new OkHttpClient.Builder()
+      .connectTimeout(5000, TimeUnit.MILLISECONDS)
+      .readTimeout(5000, TimeUnit.MILLISECONDS)
+      .build()
+  }
+
   private val cloudWatchClient = AmazonCloudWatchClientBuilder.defaultClient
 
   def handle(event: KinesisEvent) {
@@ -40,14 +49,14 @@ class Lambda {
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
           sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey, contentType)
-        //sendFacebookNewstabPing(event.payloadId)
+          sendFacebookNewstabPing(event.payloadId)
 
         case (ItemType.Content, EventType.RetrievableUpdate) =>
           val contentType = extractUpdateContentType(event)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
           sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey, contentType)
-        //sendFacebookNewstabPing(event.payloadId)
+          sendFacebookNewstabPing(event.payloadId)
 
         case other =>
           // for now we only send purges for content, so ignore any other events
@@ -196,42 +205,54 @@ class Lambda {
     if (contentIsInterestingToFacebookNewstab) {
       val scope = config.facebookNewsTabScope
 
-      // The POST endpoint with URL encoded parameters as per New Tab documentation
-      val indexArticle = new HttpUrl.Builder()
-        .scheme("https")
-        .host("graph.facebook.com")
-        .addQueryParameter("id", contentWebUrl)
-        .addQueryParameter("scopes", scope)
-        .addQueryParameter("access_token", config.facebookNewsTabAccessToken)
-        .addQueryParameter("scrape", "true")
-        .build();
+      try {
+        // The POST endpoint with URL encoded parameters as per New Tab documentation
+        val indexArticle = new HttpUrl.Builder()
+          .scheme("https")
+          .host("graph.facebook.com")
+          .addQueryParameter("id", contentWebUrl)
+          .addQueryParameter("scopes", scope)
+          .addQueryParameter("access_token", config.facebookNewsTabAccessToken)
+          .addQueryParameter("scrape", "true")
+          .build()
 
-      val request = new Request.Builder()
-        .url(indexArticle)
-        .post(EmptyJsonBody)
-        .build()
+        val request = new Request.Builder()
+          .url(indexArticle)
+          .post(EmptyJsonBody)
+          .build()
 
-      val response = httpClient.newCall(request).execute()
+        val response = facebookHttpClient.newCall(request).execute()
 
-      // Soft evaluate the Facebook response
-      // Their documentation does not specifically mention response codes.
-      // Lets evaluate and log our interpretation of the response for now
-      val wasSuccessful = response.code match {
-        case 200 =>
-          decode[FacebookNewstabResponse](response.body.string()).fold({ error =>
-            println("Failed to parse Facebook Newstab response: " + error.getMessage)
+        // Soft evaluate the Facebook response
+        // Their documentation does not specifically mention response codes.
+        // Lets evaluate and log our interpretation of the response for now
+        val responseBody = response.body.string()
+
+        val wasSuccessful = response.code match {
+          case 200 =>
+            decode[FacebookNewstabResponse](responseBody).fold({ error =>
+              println("Failed to parse Facebook Newstab response: " + error.getMessage)
+              false
+            }, { facebookResponse =>
+              facebookResponse.scopes.get(scope).contains("INDEXED")
+            })
+          case _ =>
+            println("Received unexpected response code from Facebook: " + _)
             false
-          }, { facebookResponse =>
-            facebookResponse.scopes.get(scope).contains("INDEXED")
-          })
-        case _ =>
-          println("Received unexpected response code from Facebook: " + _)
+        }
+
+        println(s"Sent Facebook Newstab ping request for content with url [$contentWebUrl]. " +
+          s"Response from Facebook: [${response.code}] [${responseBody}]. " +
+          s"Was successful: [$wasSuccessful]")
+
+      } catch {
+        case e: IOException =>
+          println("Facebook call threw IOException; this could indicate a timeout: " + e.getMessage)
+          false
+        case e: Throwable =>
+          println("Facebook call threw unexpected Exception: " + e.getMessage)
           false
       }
-
-      println(s"Sent Facebook Newstab ping request for content with url [$contentWebUrl]. " +
-        s"Response from Facebook: [${response.code}] [${response.body.string}]. " +
-        s"Was successful: [$wasSuccessful]")
 
       true // Always return true during the proof on concept until we are confident about Facebook's responses
 
