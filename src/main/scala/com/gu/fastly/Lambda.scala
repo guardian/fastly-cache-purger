@@ -226,9 +226,11 @@ class Lambda {
         // Soft evaluate the Facebook response
         // Their documentation does not specifically mention response codes.
         // Lets evaluate and log our interpretation of the response for now
+        val responseBody = response.body.string()
+
         val wasSuccessful = response.code match {
           case 200 =>
-            decode[FacebookNewstabResponse](response.body.string()).fold({ error =>
+            decode[FacebookNewstabResponse](responseBody).fold({ error =>
               println("Failed to parse Facebook Newstab response: " + error.getMessage)
               false
             }, { facebookResponse =>
@@ -240,7 +242,7 @@ class Lambda {
         }
 
         println(s"Sent Facebook Newstab ping request for content with url [$contentWebUrl]. " +
-          s"Response from Facebook: [${response.code}] [${response.body.string}]. " +
+          s"Response from Facebook: [${response.code}] [${responseBody}]. " +
           s"Was successful: [$wasSuccessful]")
 
       } catch {
