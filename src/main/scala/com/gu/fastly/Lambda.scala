@@ -13,7 +13,6 @@ import okhttp3._
 import org.apache.commons.codec.digest.DigestUtils
 
 import scala.collection.JavaConverters._
-import scala.util.{Failure, Success, Try}
 
 class Lambda {
 
@@ -134,62 +133,40 @@ class Lambda {
   private def extractUpdateContentType(event: Event): Option[ContentType] = {
     // An Update event should contain a Content payload with a content type.
     // A RetrievableContent event contains a content type hint and a link to the full content
-    val triedContentType = Try {
-      event.payload.flatMap { payload =>
-        payload match {
-          case EventPayload.Content(content) => Some(content.`type`)
-          case EventPayload.RetrievableContent(retrievableContent) => retrievableContent.contentType
-          case _ => None
-        }
+    event.payload.flatMap { payload =>
+      payload match {
+        case EventPayload.Content(content) => Some(content.`type`)
+        case EventPayload.RetrievableContent(retrievableContent) => retrievableContent.contentType
+        case _ => None
       }
-    }
-
-    triedContentType match {
-      case Success(value) =>
-        println("Event content type is: " + value)
-        value
-      case Failure(error) =>
-        println("Failed to determine event content type; returning None: " + error.getMessage)
-        None
     }
   }
 
   // Count the number of purge requests we are making
   private def sendPurgeCountMetric(contentType: Option[ContentType]): Unit = {
-    val triedSend = Try {
-      import scala.collection.JavaConverters._
-      val contentTypeDimension = contentType.map { ct =>
-        new Dimension()
-          .withName("contentType")
-          .withValue(ct.name);
-      }
-
-      val dimensions = Seq(contentTypeDimension).flatten
-
-      val metric = new MetricDatum()
-        .withMetricName("purges")
-        .withUnit(StandardUnit.None)
-        .withDimensions(dimensions.asJavaCollection)
-        .withValue(1)
-
-      val putMetricDataRequest = new PutMetricDataRequest().
-        withNamespace("fastly-cache-purger").
-        withMetricData(metric)
-
-      try {
-        cloudWatchClient.putMetricData(putMetricDataRequest)
-      } catch {
-        case t: Throwable =>
-          println("Warning; cloudwatch metrics ping failed: " + t.getMessage)
-      }
+    val contentTypeDimension = contentType.map { ct =>
+      new Dimension()
+        .withName("contentType")
+        .withValue(ct.name);
     }
 
-    triedSend match {
-      case Success(value) =>
-        ()
-      case Failure(error) =>
-        println("Failed to send metric: " + error.getMessage)
-        ()
+    val dimensions = Seq(contentTypeDimension).flatten
+
+    val metric = new MetricDatum()
+      .withMetricName("purges")
+      .withUnit(StandardUnit.None)
+      .withDimensions(dimensions.asJavaCollection)
+      .withValue(1)
+
+    val putMetricDataRequest = new PutMetricDataRequest().
+      withNamespace("fastly-cache-purger").
+      withMetricData(metric)
+
+    try {
+      cloudWatchClient.putMetricData(putMetricDataRequest)
+    } catch {
+      case t: Throwable =>
+        println("Warning; cloudwatch metrics ping failed: " + t.getMessage)
     }
   }
 
