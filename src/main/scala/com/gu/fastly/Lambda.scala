@@ -150,6 +150,7 @@ class Lambda {
 
     triedContentType match {
       case Success(value) =>
+        println("Event content type is: " + value)
         value
       case Failure(error) =>
         println("Failed to determine event content type; returning None: " + error.getMessage)
