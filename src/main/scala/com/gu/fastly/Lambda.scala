@@ -1,12 +1,11 @@
 package com.gu.fastly
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
-import com.amazonaws.services.cloudwatch.model.{ Dimension, MetricDatum, PutMetricDataRequest, StandardUnit }
+import com.amazonaws.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataRequest, StandardUnit}
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
 import com.gu.contentapi.client.model.v1.ContentType
-import com.gu.crier.model.event.v1.EventPayload.Content
 import com.gu.crier.model.event.v1._
 import io.circe.generic.auto._
 import io.circe.parser._
@@ -14,7 +13,7 @@ import okhttp3._
 import org.apache.commons.codec.digest.DigestUtils
 
 import scala.collection.JavaConverters._
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 class Lambda {
 
@@ -137,13 +136,10 @@ class Lambda {
     // A RetrievableContent event contains a content type hint and a link to the full content
     val triedContentType = Try {
       event.payload.flatMap { payload =>
-        payload.containedValue() match {
-          case content: Content =>
-            Some(content.content.`type`)
-          case retrievableContent: RetrievableContent =>
-            retrievableContent.contentType
-          case _ =>
-            None
+        payload match {
+          case EventPayload.Content(content) => Some(content.`type`)
+          case EventPayload.RetrievableContent(retrievableContent) => retrievableContent.contentType
+          case _ => None
         }
       }
     }
