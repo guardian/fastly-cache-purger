@@ -49,14 +49,14 @@ class Lambda {
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
           sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey, contentType)
-        //sendFacebookNewstabPing(event.payloadId)
+          sendFacebookNewstabPing(event.payloadId)
 
         case (ItemType.Content, EventType.RetrievableUpdate) =>
           val contentType = extractUpdateContentType(event)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
           sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey, contentType)
-        //sendFacebookNewstabPing(event.payloadId)
+          sendFacebookNewstabPing(event.payloadId)
 
         case other =>
           // for now we only send purges for content, so ignore any other events
