@@ -1,7 +1,7 @@
 package com.gu.fastly
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
-import com.amazonaws.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataRequest, StandardUnit}
+import com.amazonaws.services.cloudwatch.model.{ Dimension, MetricDatum, PutMetricDataRequest, StandardUnit }
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
@@ -25,8 +25,12 @@ class Lambda {
     val userRecords = UserRecord.deaggregate(rawRecords.asJava)
 
     println(s"Processing ${userRecords.size} records ...")
+    val events = CrierEventDeserializer.deserializeEvents(userRecords.asScala)
 
-    CrierEventProcessor.process(userRecords.asScala) { event =>
+    val distinctEvents = UpdateDeduplicator.filterAndDeduplicateContentEvents(events)
+    println(s"Processing ${distinctEvents.size} distinct content events from batch of ${events.size} events...")
+
+    CrierEventProcessor.process(distinctEvents) { event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Delete) =>
           sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
