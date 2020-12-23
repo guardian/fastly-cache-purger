@@ -49,19 +49,36 @@ class Lambda {
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
           sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey, contentType)
-          sendFacebookNewstabPing(event.payloadId)
 
         case (ItemType.Content, EventType.RetrievableUpdate) =>
           val contentType = extractUpdateContentType(event)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
           sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
           sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey, contentType)
-          sendFacebookNewstabPing(event.payloadId)
 
         case other =>
           // for now we only send purges for content, so ignore any other events
           false
       }
+    }
+
+    // Send Facebook Newstab pings for relevant content updates
+    // Filter for update events which are of interest to Facebook
+    val maximumFacebookPingsPerBatch = 3
+    val updateEvents = distinctEvents.filter { event =>
+      (event.itemType, event.eventType) match {
+        case (ItemType.Content, EventType.Update) => true
+        case (ItemType.Content, EventType.RetrievableUpdate) => true
+        case _ => false
+      }
+    }
+    val facebookNewstabUpdates = updateEvents
+      .filter(event => contentIsInterestingToFacebookNewstab(event.payloadId))
+      .take(maximumFacebookPingsPerBatch) // Limit the volume of pings during proof of concept
+
+    println("Sending Facebook pings for " + facebookNewstabUpdates.size + " content ids")
+    facebookNewstabUpdates.map { event =>
+      sendFacebookNewstabPing(event.payloadId)
     }
 
     println(s"Finished.")
@@ -183,82 +200,73 @@ class Lambda {
     }
   }
 
-  /**
-   * Identify if the content update was an article.
-   * Additional third parties may be interested in these in the near future
-   */
+  // This is an interesting question which will almost certainly be iterated on.
+  // Basing this decision entirely on the contentId is unlikely to age well.
+  // Our opening move for the proof of concept is to dibble a small amount of content which is unlikely to be taken down.
+  // Travel articles sound safe.
+  def contentIsInterestingToFacebookNewstab(contentId: String) = contentId.contains("travel/2020")
+
   /**
    * If this content update is editorially interesting to Facebook Newstab ping their update end point.
    *
    * @return decision and/or ping completed successfully
    */
   def sendFacebookNewstabPing(contentId: String): Boolean = {
+    println("Sending Facebook ping for content id: " + contentId)
     val contentPath = s"/$contentId"
     val contentWebUrl = s"https://www.theguardian.com${contentPath}"
+    val scope = config.facebookNewsTabScope
 
-    // This is an interesting question which will almost certainly by iterated on.
-    // Basing this decision entirely on the contentId is unlikely age well.
-    // Our opening move for the proof of concept is to dibble a small amount of content which is unlikely to be taken down.
-    // Travel articles sound safe.
-    val contentIsInterestingToFacebookNewstab = contentId.contains("travel/2020")
+    try {
+      // The POST endpoint with URL encoded parameters as per New Tab documentation
+      val indexArticle = new HttpUrl.Builder()
+        .scheme("https")
+        .host("graph.facebook.com")
+        .addQueryParameter("id", contentWebUrl)
+        .addQueryParameter("scopes", scope)
+        .addQueryParameter("access_token", config.facebookNewsTabAccessToken)
+        .addQueryParameter("scrape", "true")
+        .build()
 
-    if (contentIsInterestingToFacebookNewstab) {
-      val scope = config.facebookNewsTabScope
+      val request = new Request.Builder()
+        .url(indexArticle)
+        .post(EmptyJsonBody)
+        .build()
 
-      try {
-        // The POST endpoint with URL encoded parameters as per New Tab documentation
-        val indexArticle = new HttpUrl.Builder()
-          .scheme("https")
-          .host("graph.facebook.com")
-          .addQueryParameter("id", contentWebUrl)
-          .addQueryParameter("scopes", scope)
-          .addQueryParameter("access_token", config.facebookNewsTabAccessToken)
-          .addQueryParameter("scrape", "true")
-          .build()
+      val response = facebookHttpClient.newCall(request).execute()
 
-        val request = new Request.Builder()
-          .url(indexArticle)
-          .post(EmptyJsonBody)
-          .build()
+      // Soft evaluate the Facebook response
+      // Their documentation does not specifically mention response codes.
+      // Lets evaluate and log our interpretation of the response for now
+      val responseBody = response.body.string()
 
-        val response = facebookHttpClient.newCall(request).execute()
-
-        // Soft evaluate the Facebook response
-        // Their documentation does not specifically mention response codes.
-        // Lets evaluate and log our interpretation of the response for now
-        val responseBody = response.body.string()
-
-        val wasSuccessful = response.code match {
-          case 200 =>
-            decode[FacebookNewstabResponse](responseBody).fold({ error =>
-              println("Failed to parse Facebook Newstab response: " + error.getMessage)
-              false
-            }, { facebookResponse =>
-              facebookResponse.scopes.get(scope).contains("INDEXED")
-            })
-          case _ =>
-            println("Received unexpected response code from Facebook: " + _)
+      val wasSuccessful = response.code match {
+        case 200 =>
+          decode[FacebookNewstabResponse](responseBody).fold({ error =>
+            println("Failed to parse Facebook Newstab response: " + error.getMessage)
             false
-        }
-
-        println(s"Sent Facebook Newstab ping request for content with url [$contentWebUrl]. " +
-          s"Response from Facebook: [${response.code}] [${responseBody}]. " +
-          s"Was successful: [$wasSuccessful]")
-
-      } catch {
-        case e: IOException =>
-          println("Facebook call threw IOException; this could indicate a timeout: " + e.getMessage)
-          false
-        case e: Throwable =>
-          println("Facebook call threw unexpected Exception: " + e.getMessage)
+          }, { facebookResponse =>
+            facebookResponse.scopes.get(scope).contains("INDEXED")
+          })
+        case _ =>
+          println("Received unexpected response code from Facebook: " + _)
           false
       }
 
-      true // Always return true during the proof on concept until we are confident about Facebook's responses
+      println(s"Sent Facebook Newstab ping request for content with url [$contentWebUrl]. " +
+        s"Response from Facebook: [${response.code}] [${responseBody}]. " +
+        s"Was successful: [$wasSuccessful]")
 
-    } else {
-      true
+    } catch {
+      case e: IOException =>
+        println("Facebook call threw IOException; this could indicate a timeout: " + e.getMessage)
+        false
+      case e: Throwable =>
+        println("Facebook call threw unexpected Exception: " + e.getMessage)
+        false
     }
+
+    true // Always return true during the proof on concept until we are confident about Facebook's responses
   }
 
   case class FacebookNewstabResponse(url: String, scopes: Map[String, String])
