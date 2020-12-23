@@ -38,7 +38,7 @@ Resources:
       Runtime: java8
       Handler: com.gu.fastly.Lambda::handle
       MemorySize: 512
-      Timeout: 15
+      Timeout: 30
       Role: !GetAtt LambdaRole.Arn
       Tags:
         - Key: Stack
