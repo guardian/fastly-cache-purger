@@ -76,9 +76,11 @@ class Lambda {
       .filter(event => contentIsInterestingToFacebookNewstab(event.payloadId))
       .take(maximumFacebookPingsPerBatch) // Limit the volume of pings during proof of concept
 
-    println("Sending Facebook pings for " + facebookNewstabUpdates.size + " content ids")
-    facebookNewstabUpdates.map { event =>
-      sendFacebookNewstabPing(event.payloadId)
+    if (facebookNewstabUpdates.nonEmpty) {
+      println("Sending Facebook pings for " + facebookNewstabUpdates.size + " content ids")
+      facebookNewstabUpdates.map { event =>
+        sendFacebookNewstabPing(event.payloadId)
+      }
     }
 
     println(s"Finished.")
