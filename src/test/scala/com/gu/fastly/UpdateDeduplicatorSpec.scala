@@ -54,7 +54,15 @@ class UpdateDeduplicatorSpec extends WordSpecLike with MustMatchers with OneInst
 
     "pass delete events for processing" in {
       val deduplicated = UpdateDeduplicator.filterAndDeduplicateContentEvents(Seq(deleteContentEvent))
-      println(deduplicated)
+
+      deduplicated.size mustEqual 1
+      deduplicated mustEqual Seq(deleteContentEvent)
+    }
+
+    "deduplicate delete events" in {
+      val batchWithDuplicateDeletes = Seq(deleteContentEvent, deleteContentEvent)
+
+      val deduplicated = UpdateDeduplicator.filterAndDeduplicateContentEvents(batchWithDuplicateDeletes)
 
       deduplicated.size mustEqual 1
       deduplicated mustEqual Seq(deleteContentEvent)
@@ -64,9 +72,10 @@ class UpdateDeduplicatorSpec extends WordSpecLike with MustMatchers with OneInst
       val batchWithDuplicates = Seq(deleteContentEvent, updateContentEvent, updateContentEvent, anotherUpdateContentEvent)
 
       val deduplicated = UpdateDeduplicator.filterAndDeduplicateContentEvents(batchWithDuplicates)
-      deduplicated.foreach(e => println(e.payloadId))
+
       deduplicated.size mustEqual 3
       deduplicated mustEqual Seq(deleteContentEvent, updateContentEvent, anotherUpdateContentEvent)
     }
+
   }
 }
