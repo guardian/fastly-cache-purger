@@ -79,6 +79,13 @@ Resources:
                 - cloudwatch:PutMetricData
               Resource: "*"
               Effect: Allow
+        - PolicyName: AllowSNSPublish
+          PolicyDocument:
+            Statement:
+              Action:
+                - sns:Publish
+              Resource: "*"
+              Effect: Allow
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -86,7 +93,7 @@ Resources:
             Effect: Allow
             Principal:
               Service: lambda.amazonaws.com
-  DecachedCotentTopic:
+  DecachedContentTopic:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: !Sub "${App}-${Stage}-decached"
