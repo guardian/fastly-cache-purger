@@ -44,7 +44,7 @@ class Lambda {
     val distinctContentEvents = UpdateDeduplicator.filterAndDeduplicateContentEvents(events)
     println(s"Processing ${distinctContentEvents.size} distinct content events from batch of ${events.size} events...")
 
-    CrierEventProcessor.process(distinctContentEvents) { event =>
+    val successfulPurges = CrierEventProcessor.process(distinctContentEvents) { event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Delete) =>
           sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
@@ -67,9 +67,9 @@ class Lambda {
       }
     }
 
-    // Publish decached events for deletes and updates as
+    // Republish events for successful deletes and updates as
     // com.gu.crier.model.event.v1.Event events thrift serialized and base64 encoded
-    distinctContentEvents.foreach { event =>
+    successfulPurges.foreach { event =>
       val message = Base64.encodeBase64String(ThriftSerializer.serializeToBytes(event, None, None))
       val publishRequest = new PublishRequest()
       publishRequest.setTopicArn(config.decachedContentTopic)
@@ -80,7 +80,7 @@ class Lambda {
     val maximumFacebookPingsPerBatch = 3
 
     // Send Facebook denylist pings for removed content
-    val deleteEvents = distinctContentEvents.filter(event =>
+    val deleteEvents = successfulPurges.filter(event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Delete) => true
         case _ => false
@@ -99,7 +99,7 @@ class Lambda {
 
     // Send Facebook Newstab pings for relevant content updates
     // Filter for update events which are of interest to Facebook
-    val updateEvents = distinctContentEvents.filter { event =>
+    val updateEvents = successfulPurges.filter { event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Update) => true
         case (ItemType.Content, EventType.RetrievableUpdate) => true
