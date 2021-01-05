@@ -70,11 +70,16 @@ class Lambda {
     // Republish events for successful deletes and updates as
     // com.gu.crier.model.event.v1.Event events thrift serialized and base64 encoded
     successfulPurges.foreach { event =>
-      val message = Base64.encodeBase64String(ThriftSerializer.serializeToBytes(event, None, None))
-      val publishRequest = new PublishRequest()
-      publishRequest.setTopicArn(config.decachedContentTopic)
-      publishRequest.setMessage(message)
-      snsClient.publish(publishRequest)
+      try {
+        val message = Base64.encodeBase64String(ThriftSerializer.serializeToBytes(event, None, None))
+        val publishRequest = new PublishRequest()
+        publishRequest.setTopicArn(config.decachedContentTopic)
+        publishRequest.setMessage(message)
+        snsClient.publish(publishRequest)
+      } catch {
+        case t: Throwable =>
+          println("Warning; publish sns decached event failed: " + t.getMessage)
+      }
     }
 
     val maximumFacebookPingsPerBatch = 3
