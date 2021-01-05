@@ -86,3 +86,8 @@ Resources:
             Effect: Allow
             Principal:
               Service: lambda.amazonaws.com
+  DecachedCotentTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${App}-${Stage}-decached"
+      DisplayName: !Sub '${App}-${Stage}-Decached'
