@@ -5,11 +5,15 @@ import com.amazonaws.services.cloudwatch.model.{ Dimension, MetricDatum, PutMetr
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
+import com.amazonaws.services.sns.AmazonSNSClientBuilder
+import com.amazonaws.services.sns.model.PublishRequest
 import com.gu.contentapi.client.model.v1.ContentType
 import com.gu.crier.model.event.v1._
+import com.gu.thrift.serializer.ThriftSerializer
 import io.circe.generic.auto._
 import io.circe.parser._
 import okhttp3._
+import org.apache.commons.codec.binary.Base64
 import org.apache.commons.codec.digest.DigestUtils
 
 import java.io.IOException
@@ -28,6 +32,7 @@ class Lambda {
   }
 
   private val cloudWatchClient = AmazonCloudWatchClientBuilder.defaultClient
+  private val snsClient = AmazonSNSClientBuilder.defaultClient
 
   def handle(event: KinesisEvent) {
     val rawRecords: List[Record] = event.getRecords.asScala.map(_.getKinesis).toList
@@ -36,10 +41,10 @@ class Lambda {
     println(s"Processing ${userRecords.size} records ...")
     val events = CrierEventDeserializer.deserializeEvents(userRecords.asScala)
 
-    val distinctEvents = UpdateDeduplicator.filterAndDeduplicateContentEvents(events)
-    println(s"Processing ${distinctEvents.size} distinct content events from batch of ${events.size} events...")
+    val distinctContentEvents = UpdateDeduplicator.filterAndDeduplicateContentEvents(events)
+    println(s"Processing ${distinctContentEvents.size} distinct content events from batch of ${events.size} events...")
 
-    CrierEventProcessor.process(distinctEvents) { event =>
+    CrierEventProcessor.process(distinctContentEvents) { event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Delete) =>
           sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
@@ -62,10 +67,20 @@ class Lambda {
       }
     }
 
+    // Publish decached events for deletes and updates as
+    // com.gu.crier.model.event.v1.Event events thrift serialized and base64 encoded
+    distinctContentEvents.foreach { event =>
+      val message = Base64.encodeBase64String(ThriftSerializer.serializeToBytes(event, None, None))
+      val publishRequest = new PublishRequest()
+      publishRequest.setTopicArn(config.decachedContentTopic)
+      publishRequest.setMessage(message)
+      snsClient.publish(publishRequest)
+    }
+
     val maximumFacebookPingsPerBatch = 3
 
     // Send Facebook denylist pings for removed content
-    val deleteEvents = distinctEvents.filter(event =>
+    val deleteEvents = distinctContentEvents.filter(event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Delete) => true
         case _ => false
@@ -84,7 +99,7 @@ class Lambda {
 
     // Send Facebook Newstab pings for relevant content updates
     // Filter for update events which are of interest to Facebook
-    val updateEvents = distinctEvents.filter { event =>
+    val updateEvents = distinctContentEvents.filter { event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Update) => true
         case (ItemType.Content, EventType.RetrievableUpdate) => true
@@ -110,8 +125,14 @@ class Lambda {
     RequestBody.create(MediaType.parse("application/json; charset=utf-8"), "")
 
   private sealed trait PurgeType
-  private object Soft extends PurgeType { override def toString = "soft" }
-  private object Hard extends PurgeType { override def toString = "hard" }
+
+  private object Soft extends PurgeType {
+    override def toString = "soft"
+  }
+
+  private object Hard extends PurgeType {
+    override def toString = "hard"
+  }
 
   def makeMapiSurrogateKey(contentId: String): String = s"Item/$contentId"
 
@@ -159,6 +180,7 @@ class Lambda {
 
     purged
   }
+
   /**
    * Send a ping request to Google AMP to refresh the cache.
    * See https://developers.google.com/amp/cache/update-ping
