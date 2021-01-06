@@ -9,11 +9,10 @@ import com.amazonaws.services.sns.AmazonSNSClientBuilder
 import com.amazonaws.services.sns.model.PublishRequest
 import com.gu.contentapi.client.model.v1.ContentType
 import com.gu.crier.model.event.v1._
-import com.gu.thrift.serializer.ThriftSerializer
+import com.gu.fastly.model.event.v1
 import io.circe.generic.auto._
 import io.circe.parser._
 import okhttp3._
-import org.apache.commons.codec.binary.Base64
 import org.apache.commons.codec.digest.DigestUtils
 
 import java.io.IOException
@@ -70,16 +69,29 @@ class Lambda {
     // Republish events for successful deletes and updates as
     // com.gu.crier.model.event.v1.Event events thrift serialized and base64 encoded
     successfulPurges.foreach { event =>
-      try {
-        val message = Base64.encodeBase64String(ThriftSerializer.serializeToBytes(event, None, None))
-        println("Publishing SNS decached message for content id '" + event.payloadId + "' of length: " + message.length)
-        val publishRequest = new PublishRequest()
-        publishRequest.setTopicArn(config.decachedContentTopic)
-        publishRequest.setMessage(message)
-        snsClient.publish(publishRequest)
-      } catch {
-        case t: Throwable =>
-          println("Warning; publish sns decached event failed: " + t.getMessage)
+      val supportedDecacheEventType: Option[v1.EventType] = event.eventType match {
+        case EventType.Update => Some(com.gu.fastly.model.event.v1.EventType.Update)
+        case EventType.Delete => Some(com.gu.fastly.model.event.v1.EventType.Delete)
+        case _ => None
+      }
+
+      supportedDecacheEventType.map { decacheEventType =>
+        val contentDecachedEvent = com.gu.fastly.model.event.v1.ContentDecachedEvent(
+          contentId = event.payloadId,
+          eventType = decacheEventType
+        )
+        try {
+          val message = ContentDecachedEventSerializer.serialize(contentDecachedEvent)
+          println("Publishing SNS decached message for content id '" + event.payloadId + "' of length: " + message.length)
+
+          val publishRequest = new PublishRequest()
+          publishRequest.setTopicArn(config.decachedContentTopic)
+          publishRequest.setMessage(message)
+          snsClient.publish(publishRequest)
+        } catch {
+          case t: Throwable =>
+            println("Warning; publish sns decached event failed: " + t.getMessage)
+        }
       }
     }
 
