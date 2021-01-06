@@ -72,6 +72,7 @@ class Lambda {
     successfulPurges.foreach { event =>
       try {
         val message = Base64.encodeBase64String(ThriftSerializer.serializeToBytes(event, None, None))
+        println("Publishing SNS decached message for content id '" + event.payloadId + "' of length: " + message.length)
         val publishRequest = new PublishRequest()
         publishRequest.setTopicArn(config.decachedContentTopic)
         publishRequest.setMessage(message)
