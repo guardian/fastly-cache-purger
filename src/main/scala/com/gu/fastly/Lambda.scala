@@ -1,7 +1,7 @@
 package com.gu.fastly
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
-import com.amazonaws.services.cloudwatch.model.{ Dimension, MetricDatum, PutMetricDataRequest, StandardUnit }
+import com.amazonaws.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataRequest, StandardUnit}
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
@@ -9,7 +9,6 @@ import com.amazonaws.services.sns.AmazonSNSClientBuilder
 import com.amazonaws.services.sns.model.PublishRequest
 import com.gu.contentapi.client.model.v1.ContentType
 import com.gu.crier.model.event.v1._
-import com.gu.fastly.model.event.v1
 import io.circe.generic.auto._
 import io.circe.parser._
 import okhttp3._
