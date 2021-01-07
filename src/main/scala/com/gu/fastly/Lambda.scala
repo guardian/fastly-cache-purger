@@ -142,14 +142,8 @@ class Lambda {
     RequestBody.create(MediaType.parse("application/json; charset=utf-8"), "")
 
   private sealed trait PurgeType
-
-  private object Soft extends PurgeType {
-    override def toString = "soft"
-  }
-
-  private object Hard extends PurgeType {
-    override def toString = "hard"
-  }
+  private object Soft extends PurgeType { override def toString = "soft" }
+  private object Hard extends PurgeType { override def toString = "hard" }
 
   def makeMapiSurrogateKey(contentId: String): String = s"Item/$contentId"
 
