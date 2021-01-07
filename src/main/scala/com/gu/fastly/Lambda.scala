@@ -69,7 +69,7 @@ class Lambda {
     // Republish events for successful deletes and updates as
     // com.gu.crier.model.event.v1.Event events thrift serialized and base64 encoded
     successfulPurges.foreach { event =>
-      val supportedDecacheEventType: Option[v1.EventType] = event.eventType match {
+      val supportedDecacheEventType = event.eventType match {
         case EventType.Update => Some(com.gu.fastly.model.event.v1.EventType.Update)
         case EventType.Delete => Some(com.gu.fastly.model.event.v1.EventType.Delete)
         case _ => None
