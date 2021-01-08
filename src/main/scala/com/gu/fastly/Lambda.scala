@@ -1,7 +1,7 @@
 package com.gu.fastly
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
-import com.amazonaws.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataRequest, StandardUnit}
+import com.amazonaws.services.cloudwatch.model.{ Dimension, MetricDatum, PutMetricDataRequest, StandardUnit }
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
@@ -9,25 +9,15 @@ import com.amazonaws.services.sns.AmazonSNSClientBuilder
 import com.amazonaws.services.sns.model.PublishRequest
 import com.gu.contentapi.client.model.v1.ContentType
 import com.gu.crier.model.event.v1._
-import io.circe.generic.auto._
-import io.circe.parser._
 import okhttp3._
 import org.apache.commons.codec.digest.DigestUtils
 
-import java.io.IOException
-import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 
 class Lambda {
 
   private val config = Config.load()
   private val httpClient = new OkHttpClient()
-  private val facebookHttpClient = {
-    new OkHttpClient.Builder()
-      .connectTimeout(5000, TimeUnit.MILLISECONDS)
-      .readTimeout(5000, TimeUnit.MILLISECONDS)
-      .build()
-  }
 
   private val cloudWatchClient = AmazonCloudWatchClientBuilder.defaultClient
   private val snsClient = AmazonSNSClientBuilder.defaultClient
@@ -88,46 +78,6 @@ class Lambda {
           case t: Throwable =>
             println("Warning; publish sns decached event failed: ${t.getMessage}")
         }
-      }
-    }
-
-    val maximumFacebookPingsPerBatch = 3
-
-    // Send Facebook denylist pings for removed content
-    val deleteEvents = successfulPurges.filter(event =>
-      (event.itemType, event.eventType) match {
-        case (ItemType.Content, EventType.Delete) => true
-        case _ => false
-      })
-
-    val facebookNewstabDeletes = deleteEvents
-      .filter(event => contentIsInterestingToFacebookNewstab(event.payloadId))
-      .take(maximumFacebookPingsPerBatch) // Limit the volume of pings during proof of concept
-
-    if (facebookNewstabDeletes.nonEmpty) {
-      println("Sending Facebook denylist pings for " + facebookNewstabDeletes.size + " content ids")
-      facebookNewstabDeletes.map { event =>
-        sendFacebookNewsitemDenylistRequest(event.payloadId)
-      }
-    }
-
-    // Send Facebook Newstab pings for relevant content updates
-    // Filter for update events which are of interest to Facebook
-    val updateEvents = successfulPurges.filter { event =>
-      (event.itemType, event.eventType) match {
-        case (ItemType.Content, EventType.Update) => true
-        case (ItemType.Content, EventType.RetrievableUpdate) => true
-        case _ => false
-      }
-    }
-    val facebookNewstabUpdates = updateEvents
-      .filter(event => contentIsInterestingToFacebookNewstab(event.payloadId))
-      .take(maximumFacebookPingsPerBatch) // Limit the volume of pings during proof of concept
-
-    if (facebookNewstabUpdates.nonEmpty) {
-      println("Sending Facebook pings for " + facebookNewstabUpdates.size + " content ids")
-      facebookNewstabUpdates.map { event =>
-        sendFacebookNewstabPing(event.payloadId)
       }
     }
 
@@ -250,124 +200,5 @@ class Lambda {
         println("Warning; cloudwatch metrics ping failed: " + t.getMessage)
     }
   }
-
-  // This is an interesting question which will almost certainly be iterated on.
-  // Basing this decision entirely on the contentId is unlikely to age well.
-  // Our opening move for the proof of concept is to dibble a small amount of content which is unlikely to be taken down.
-  // Travel articles sound safe.
-  def contentIsInterestingToFacebookNewstab(contentId: String) = contentId.contains("travel/2020")
-
-  /**
-   * If this content update is editorially interesting to Facebook Newstab ping their update end point.
-   *
-   * @return decision and/or ping completed successfully
-   */
-  def sendFacebookNewstabPing(contentId: String): Boolean = {
-    println("Sending Facebook ping for content id: " + contentId)
-    val contentWebUrl = webUrlFor(contentId)
-    val scope = config.facebookNewsTabScope
-
-    try {
-      // The POST endpoint with URL encoded parameters as per New Tab documentation
-      val indexArticle = new HttpUrl.Builder()
-        .scheme("https")
-        .host("graph.facebook.com")
-        .addQueryParameter("id", contentWebUrl)
-        .addQueryParameter("scopes", scope)
-        .addQueryParameter("access_token", config.facebookNewsTabAccessToken)
-        .addQueryParameter("scrape", "true")
-        .build()
-
-      val request = new Request.Builder()
-        .url(indexArticle)
-        .post(EmptyJsonBody)
-        .build()
-
-      val response = facebookHttpClient.newCall(request).execute()
-
-      // Soft evaluate the Facebook response
-      // Their documentation does not specifically mention response codes.
-      // Lets evaluate and log our interpretation of the response for now
-      val responseBody = response.body.string()
-      val wasSuccessful = isExpectedFacebookNewstabResponse(response, responseBody, scope, "INDEXED")
-
-      println(s"Sent Facebook Newstab ping request for content with url [$contentWebUrl]. " +
-        s"Response from Facebook: [${response.code}] [${responseBody}]. " +
-        s"Was successful: [$wasSuccessful]")
-
-    } catch {
-      case e: IOException =>
-        println("Facebook call threw IOException; this could indicate a timeout: " + e.getMessage)
-        false
-      case e: Throwable =>
-        println("Facebook call threw unexpected Exception: " + e.getMessage)
-        false
-    }
-
-    true // Always return true during the proof on concept until we are confident about Facebook's responses
-  }
-
-  /**
-   * Denylist this content within Facebook News Tab
-   * This will add the article to the News Tab denylist hiding the article from the News Tab.
-   * "Denylisting only affects articles in the News Tab. Articles will still be visible on other Facebook surfaces."
-   *
-   * @return decision and/or denylist ping completed successfully
-   */
-  def sendFacebookNewsitemDenylistRequest(contentId: String): Boolean = {
-    val contentWebUrl = webUrlFor(contentId)
-    val scope = config.facebookNewsTabScope
-
-    //POST endpoint with URL encoded parameters as per New Tab documentation
-    val indexArticle = new HttpUrl.Builder()
-      .scheme("https")
-      .host("graph.facebook.com")
-      .addQueryParameter("id", contentWebUrl)
-      .addQueryParameter("scopes", scope)
-      .addQueryParameter("access_token", config.facebookNewsTabAccessToken)
-      .addQueryParameter("denylist", "true")
-      .build();
-
-    val request = new Request.Builder()
-      .url(indexArticle)
-      .post(EmptyJsonBody)
-      .build()
-
-    val response = facebookHttpClient.newCall(request).execute()
-
-    // Soft evaluate the Facebook response
-    // Their documentation does not specifically mention response codes.
-    // Lets evaluate and log our interpretation of the response for now
-    val responseBody = response.body.string()
-    val wasSuccessful = isExpectedFacebookNewstabResponse(response, responseBody, scope, "DENYLISTED")
-
-    println(s"Sent Facebook Newstab denylist request for content with url [$contentWebUrl]. " +
-      s"Response from Facebook: [${response.code}] [${responseBody}]. " +
-      s"Was successful: [$wasSuccessful]")
-
-    true // Always return true during the proof on concept until we are confident about Facebook's responses
-  }
-
-  private def webUrlFor(contentId: String) = {
-    val contentPath = s"/$contentId"
-    s"https://www.theguardian.com${contentPath}"
-  }
-
-  private def isExpectedFacebookNewstabResponse(response: Response, responseBody: String, scope: String, expected: String): Boolean = {
-    response.code match {
-      case 200 =>
-        decode[FacebookNewstabResponse](responseBody).fold({ error =>
-          println("Failed to parse Facebook Newstab response: " + error.getMessage)
-          false
-        }, { facebookResponse =>
-          facebookResponse.scopes.get(scope).contains(expected)
-        })
-      case _ =>
-        println("Received unexpected response code from Facebook: " + _)
-        false
-    }
-  }
-
-  case class FacebookNewstabResponse(url: String, scopes: Map[String, String])
 
 }
