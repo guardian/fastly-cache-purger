@@ -1,10 +1,12 @@
 package com.gu.fastly
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
-import com.amazonaws.services.cloudwatch.model.{ Dimension, MetricDatum, PutMetricDataRequest, StandardUnit }
+import com.amazonaws.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataRequest, StandardUnit}
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
+import com.amazonaws.services.sns.AmazonSNSClientBuilder
+import com.amazonaws.services.sns.model.PublishRequest
 import com.gu.contentapi.client.model.v1.ContentType
 import com.gu.crier.model.event.v1._
 import io.circe.generic.auto._
@@ -28,6 +30,7 @@ class Lambda {
   }
 
   private val cloudWatchClient = AmazonCloudWatchClientBuilder.defaultClient
+  private val snsClient = AmazonSNSClientBuilder.defaultClient
 
   def handle(event: KinesisEvent) {
     val rawRecords: List[Record] = event.getRecords.asScala.map(_.getKinesis).toList
@@ -36,10 +39,10 @@ class Lambda {
     println(s"Processing ${userRecords.size} records ...")
     val events = CrierEventDeserializer.deserializeEvents(userRecords.asScala)
 
-    val distinctEvents = UpdateDeduplicator.filterAndDeduplicateContentEvents(events)
-    println(s"Processing ${distinctEvents.size} distinct content events from batch of ${events.size} events...")
+    val distinctContentEvents = UpdateDeduplicator.filterAndDeduplicateContentEvents(events)
+    println(s"Processing ${distinctContentEvents.size} distinct content events from batch of ${events.size} events...")
 
-    CrierEventProcessor.process(distinctEvents) { event =>
+    val successfulPurges = CrierEventProcessor.process(distinctContentEvents) { event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Delete) =>
           sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
@@ -62,10 +65,36 @@ class Lambda {
       }
     }
 
+    // Republish events for successful deletes and updates as
+    // com.gu.crier.model.event.v1.Event events thrift serialized and base64 encoded
+    successfulPurges.foreach { event =>
+      val supportedDecacheEventType = event.eventType match {
+        case EventType.Update => Some(com.gu.fastly.model.event.v1.EventType.Update)
+        case EventType.Delete => Some(com.gu.fastly.model.event.v1.EventType.Delete)
+        case _ => None
+      }
+
+      supportedDecacheEventType.map { decacheEventType =>
+        val contentDecachedEvent = com.gu.fastly.model.event.v1.ContentDecachedEvent(
+          contentId = event.payloadId,
+          eventType = decacheEventType
+        )
+        try {
+          val publishRequest = new PublishRequest()
+          publishRequest.setTopicArn(config.decachedContentTopic)
+          publishRequest.setMessage(ContentDecachedEventSerializer.serialize(contentDecachedEvent))
+          snsClient.publish(publishRequest)
+        } catch {
+          case t: Throwable =>
+            println("Warning; publish sns decached event failed: ${t.getMessage}")
+        }
+      }
+    }
+
     val maximumFacebookPingsPerBatch = 3
 
     // Send Facebook denylist pings for removed content
-    val deleteEvents = distinctEvents.filter(event =>
+    val deleteEvents = successfulPurges.filter(event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Delete) => true
         case _ => false
@@ -84,7 +113,7 @@ class Lambda {
 
     // Send Facebook Newstab pings for relevant content updates
     // Filter for update events which are of interest to Facebook
-    val updateEvents = distinctEvents.filter { event =>
+    val updateEvents = successfulPurges.filter { event =>
       (event.itemType, event.eventType) match {
         case (ItemType.Content, EventType.Update) => true
         case (ItemType.Content, EventType.RetrievableUpdate) => true
@@ -159,6 +188,7 @@ class Lambda {
 
     purged
   }
+
   /**
    * Send a ping request to Google AMP to refresh the cache.
    * See https://developers.google.com/amp/cache/update-ping
