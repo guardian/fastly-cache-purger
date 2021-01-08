@@ -80,16 +80,13 @@ class Lambda {
           eventType = decacheEventType
         )
         try {
-          val message = ContentDecachedEventSerializer.serialize(contentDecachedEvent)
-          println("Publishing SNS decached message for content id '" + event.payloadId + "' of length: " + message.length)
-
           val publishRequest = new PublishRequest()
           publishRequest.setTopicArn(config.decachedContentTopic)
-          publishRequest.setMessage(message)
+          publishRequest.setMessage(ContentDecachedEventSerializer.serialize(contentDecachedEvent))
           snsClient.publish(publishRequest)
         } catch {
           case t: Throwable =>
-            println("Warning; publish sns decached event failed: " + t.getMessage)
+            println("Warning; publish sns decached event failed: ${t.getMessage}")
         }
       }
     }
