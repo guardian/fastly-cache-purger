@@ -16,6 +16,7 @@ class ContentDecachedEventSerializerSpec extends WordSpecLike with MustMatchers 
       val serialized = ContentDecachedEventSerializer.serialize(contentDecachedEvent)
 
       serialized must include("\"1\":{\"str\":\"/travel/some-content\"")
+      serialized must endWith("}")
     }
 
   }

@@ -12,7 +12,7 @@ object ContentDecachedEventSerializer {
     val buffer = new TMemoryBuffer(128)
     val protocol = new TJSONProtocol(buffer)
     event.write(protocol)
-    new String(buffer.getArray, StandardCharsets.UTF_8)
+    buffer.toString(StandardCharsets.UTF_8.name())
   }
 
 }
