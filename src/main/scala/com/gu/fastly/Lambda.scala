@@ -75,6 +75,7 @@ class Lambda {
           publishRequest.setMessage(ContentDecachedEventSerializer.serialize(contentDecachedEvent))
           val result = snsClient.publish(publishRequest)
           println("Published sns decached event " + result.getMessageId + "for content id: " + event.payloadId)
+          println("Sequence number: " + result.getSequenceNumber)
 
         } catch {
           case t: Throwable =>
