@@ -6,8 +6,7 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder
 
 import scala.util.Try
 
-case class Config(fastlyDotcomServiceId: String, fastlyMapiServiceId: String, fastlyApiNextgenServiceId: String, fastlyDotcomApiKey: String, fastlyMapiApiKey: String,
-  facebookNewsTabAccessToken: String, facebookNewsTabScope: String, decachedContentTopic: String)
+case class Config(fastlyDotcomServiceId: String, fastlyMapiServiceId: String, fastlyApiNextgenServiceId: String, fastlyDotcomApiKey: String, fastlyMapiApiKey: String, decachedContentTopic: String)
 
 object Config {
 
@@ -26,14 +25,9 @@ object Config {
 
     val fastlyMapiApiKey = getMandatoryConfig(properties, "fastly.MapiApiKey")
 
-    val facebookNewsTabAccessToken = getMandatoryConfig(properties, "facebook.newstab.accessToken")
-
-    val facebookNewsTabScope = getMandatoryConfig(properties, "facebook.newstab.scope")
-
     val decachedContentTopic = getMandatoryConfig(properties, "decached.content.topic")
 
-    Config(fastlyDotcomServiceId, fastlyMapiServiceId, fastlyGuardianAppsServiceId, fastlyDotcomApiKey, fastlyMapiApiKey,
-      facebookNewsTabAccessToken, facebookNewsTabScope, decachedContentTopic)
+    Config(fastlyDotcomServiceId, fastlyMapiServiceId, fastlyGuardianAppsServiceId, fastlyDotcomApiKey, fastlyMapiApiKey, decachedContentTopic)
   }
 
   private def loadProperties(bucket: String, key: String): Try[Properties] = {
