@@ -64,10 +64,13 @@ class Lambda {
         case _ => None
       }
 
+      val contentType = extractUpdateContentType(event)
+
       supportedDecacheEventType.map { decacheEventType =>
         val contentDecachedEvent = com.gu.fastly.model.event.v1.ContentDecachedEvent(
           contentId = event.payloadId,
-          eventType = decacheEventType
+          eventType = decacheEventType,
+          contentType = contentType
         )
         try {
           val publishRequest = new PublishRequest()
