@@ -10,6 +10,11 @@ object Main extends App {
 
   private val httpClient = new OkHttpClient()
 
+  def getPrivateKey(): PrivateKey = {
+    val bytes = Files.readAllBytes(Paths.get("/Users/pascal/Galaxy/Open-Threads/The Guardian NX141-8E97B1C0/Pascal Work Log/B-In Progress/2020-12 amp cache update/NX141-f20b687a-e07b-41f0-bcf4-57760a709324/21 Preparing the private key for Scala/02 Keys/private-key.der"))
+    KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(bytes))
+  }
+
   def computeCacheUpdateRequestSignature(principalURLFragment: String): Array[Byte] = {
     /*
       reference:
@@ -17,8 +22,7 @@ object Main extends App {
         signature = "HR-NpWisQAcmGlv7wMvzM80eIBhX0161SDuwMTgqsUIooXyuXPh7P6nQszSD3Nn8D0PiRgPX4uONlPb3L8VfN4QIhBBrBwSgnI3OfQ_36ho4KZmBNIFOfwTtvLjgEjpDRf6FAkWUCZZbOMfWZkDut6fd9sL3vWc1fezDcpDm1n7jkVf_UfCY9i9ABvuW1eUvOizuB5JGKFhPIZVXA_1XONRFNJ56tmr2qtjkzuN5aGQ5Ava_KRZNQhNVfrwYerMUOpK0UeHdk3iqhWsJ2cGL4F2Dr-MAlmqDqglt3XVh_WzR6NUWMQZt7TqkhAtN7GLBgm3enpJfT5iyQavFUQNoZA"
      */
     val signer = Signature.getInstance("SHA256withRSA")
-    val bytes = Files.readAllBytes(Paths.get("/Users/pascal/Galaxy/Open-Threads/The Guardian NX141-8E97B1C0/Pascal Work Log/B-In Progress/2020-12 amp cache update/NX141-f20b687a-e07b-41f0-bcf4-57760a709324/21 Preparing the private key for Scala/02 Keys/private-key.der"))
-    val privateKey: PrivateKey = KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(bytes))
+    val privateKey: PrivateKey = getPrivateKey()
     signer.initSign(privateKey)
     signer.update(principalURLFragment.getBytes)
     signer.sign()
