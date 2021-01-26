@@ -8,6 +8,8 @@ import org.joda.time.DateTime
 
 object AmpFlusher {
 
+  // This object implements AMP flush/delete according to https://developers.google.com/amp/cache/update-cache
+  
   private val httpClient = new OkHttpClient()
 
   def getCurrentUnixtime(): Long = {
@@ -42,7 +44,6 @@ object AmpFlusher {
     s"https://amp-theguardian-com.cdn.ampproject.org${cacheUpdateRequestURL}&amp_url_signature=${signatureAsWebSafeString(signature)}"
   }
 
-  // https://developers.google.com/amp/cache/update-cache
   def sendAmpDeleteRequest(contentId: String): Boolean = {
     val requestUrl = makeRequestUrl(contentId: String, getCurrentUnixtime())
     val request = new Request.Builder().url(requestUrl).get().build()
