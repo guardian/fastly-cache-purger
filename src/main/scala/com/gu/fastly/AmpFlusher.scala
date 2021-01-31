@@ -9,8 +9,9 @@ import org.joda.time.DateTime
 object AmpFlusher {
 
   // This object implements AMP flush/delete according to https://developers.google.com/amp/cache/update-cache
-  
+
   private val httpClient = new OkHttpClient()
+  private val config = Config.load()
 
   def getCurrentUnixtime(): Long = {
     DateTime.now().getMillis() / 1000
@@ -18,6 +19,11 @@ object AmpFlusher {
 
   def getPrivateKey(): PrivateKey = {
     val bytes = Files.readAllBytes(Paths.get("/Users/pascal/Galaxy/Open-Threads/The Guardian NX141-8E97B1C0/Pascal Work Log/B-In Progress/2020-12 amp cache update/NX141-f20b687a-e07b-41f0-bcf4-57760a709324/21 Preparing the private key for Scala/02 Keys/private-key.der"))
+    KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(bytes))
+  }
+
+  def getPrivateKey2(): PrivateKey = {
+    val bytes = config.ampFlusherPrivateKey
     KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(bytes))
   }
 
