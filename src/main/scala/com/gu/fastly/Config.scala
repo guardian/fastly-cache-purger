@@ -1,12 +1,19 @@
 package com.gu.fastly
 
 import java.util.Properties
-
-import com.amazonaws.services.s3.AmazonS3ClientBuilder
-
 import scala.util.Try
+import com.amazonaws.services.s3.AmazonS3ClientBuilder
+import com.amazonaws.util.IOUtils
 
-case class Config(fastlyDotcomServiceId: String, fastlyMapiServiceId: String, fastlyApiNextgenServiceId: String, fastlyDotcomApiKey: String, fastlyMapiApiKey: String, decachedContentTopic: String)
+case class Config(
+  fastlyDotcomServiceId: String,
+  fastlyMapiServiceId: String,
+  fastlyApiNextgenServiceId: String,
+  fastlyDotcomApiKey: String,
+  fastlyMapiApiKey: String,
+  decachedContentTopic: String,
+  ampFlusherPrivateKey: Array[Byte]
+)
 
 object Config {
 
@@ -27,7 +34,15 @@ object Config {
 
     val decachedContentTopic = getMandatoryConfig(properties, "decached.content.topic")
 
-    Config(fastlyDotcomServiceId, fastlyMapiServiceId, fastlyGuardianAppsServiceId, fastlyDotcomApiKey, fastlyMapiApiKey, decachedContentTopic)
+    Config(
+      fastlyDotcomServiceId,
+      fastlyMapiServiceId,
+      fastlyGuardianAppsServiceId,
+      fastlyDotcomApiKey,
+      fastlyMapiApiKey,
+      decachedContentTopic,
+      getAmpFlusherPrivateKey()
+    )
   }
 
   private def loadProperties(bucket: String, key: String): Try[Properties] = {
@@ -41,5 +56,11 @@ object Config {
   private def getMandatoryConfig(config: Properties, key: String) =
     Option(config.getProperty(key)) getOrElse sys.error(s"''$key' property missing.")
 
+  private def getAmpFlusherPrivateKey(): Array[Byte] = {
+    val inputStream = s3.getObject("fastly-cache-purger-config", "amp-flusher-private-key.der").getObjectContent()
+    val key: Array[Byte] = IOUtils.toByteArray(inputStream)
+    inputStream.close()
+    key
+  }
 }
 
