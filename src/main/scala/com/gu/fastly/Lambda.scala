@@ -9,6 +9,7 @@ import com.amazonaws.services.sns.AmazonSNSClientBuilder
 import com.amazonaws.services.sns.model.PublishRequest
 import com.gu.contentapi.client.model.v1.ContentType
 import com.gu.crier.model.event.v1._
+import com.gu.googleamp.AmpFlusher
 import okhttp3._
 import org.apache.commons.codec.digest.DigestUtils
 
@@ -105,7 +106,7 @@ class Lambda {
 
   private def sendFastlyPurgeRequestAndAmpPingRequest(contentId: String, purgeType: PurgeType, serviceId: String, surrogateKey: String, fastlyApiKey: String): Boolean = {
     if (sendFastlyPurgeRequest(contentId, purgeType, serviceId, surrogateKey, fastlyApiKey))
-      sendAmpPingRequest(contentId)
+      AmpFlusher.sendAmpDeleteRequest(contentId)
     else
       false
   }
@@ -140,28 +141,6 @@ class Lambda {
     sendPurgeCountMetric(contentType)
 
     purged
-  }
-
-  /**
-   * Send a ping request to Google AMP to refresh the cache.
-   * See https://developers.google.com/amp/cache/update-ping
-   *
-   * @return whether the request was successfully processed by the server
-   */
-  private def sendAmpPingRequest(contentId: String): Boolean = {
-    val contentPath = s"/$contentId"
-
-    val url = s"https://amp-theguardian-com.cdn.ampproject.org/update-ping/c/s/amp.theguardian.com${contentPath}"
-
-    val request = new Request.Builder()
-      .url(url)
-      .get()
-      .build()
-
-    val response = httpClient.newCall(request).execute()
-    println(s"Sent ping request for content with ID [$contentId]. Response from Google AMP CDN: [${response.code}] [${response.body.string}]")
-
-    response.code == 204
   }
 
   private def extractUpdateContentType(event: Event): Option[ContentType] = {
