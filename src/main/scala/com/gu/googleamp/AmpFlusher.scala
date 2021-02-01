@@ -1,10 +1,10 @@
-package com.gu.fastly
+package com.gu.googleamp
 
 import okhttp3.{ OkHttpClient, Request }
-import java.security.{ KeyFactory, KeyPair, KeyPairGenerator, PrivateKey, PublicKey, Signature }
-import java.security.spec.{ PKCS8EncodedKeySpec, X509EncodedKeySpec }
-import java.nio.file.{ Files, Paths }
 import org.joda.time.DateTime
+import java.security.spec.PKCS8EncodedKeySpec
+import java.security.{ KeyFactory, PrivateKey, Signature }
+import com.gu.fastly.Config
 
 object AmpFlusher {
 
@@ -18,21 +18,11 @@ object AmpFlusher {
   }
 
   def getPrivateKey(): PrivateKey = {
-    val bytes = Files.readAllBytes(Paths.get("/Users/pascal/Galaxy/Open-Threads/The Guardian NX141-8E97B1C0/Pascal Work Log/B-In Progress/2020-12 amp cache update/NX141-f20b687a-e07b-41f0-bcf4-57760a709324/21 Preparing the private key for Scala/02 Keys/private-key.der"))
-    KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(bytes))
-  }
-
-  def getPrivateKey2(): PrivateKey = {
     val bytes = config.ampFlusherPrivateKey
     KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(bytes))
   }
 
   def computeSignature(data: Array[Byte], privateKey: PrivateKey): Array[Byte] = {
-    /*
-      reference:
-        principalURLFragment = "/update-cache/c/s/amp.theguardian.com/lifeandstyle/2020/dec/22/sex-at-christmas-tends-to-be-off-menu-until-fireworks-at-new-year-study?amp_action=flush&amp_ts=1611582408"
-        signature = "HR-NpWisQAcmGlv7wMvzM80eIBhX0161SDuwMTgqsUIooXyuXPh7P6nQszSD3Nn8D0PiRgPX4uONlPb3L8VfN4QIhBBrBwSgnI3OfQ_36ho4KZmBNIFOfwTtvLjgEjpDRf6FAkWUCZZbOMfWZkDut6fd9sL3vWc1fezDcpDm1n7jkVf_UfCY9i9ABvuW1eUvOizuB5JGKFhPIZVXA_1XONRFNJ56tmr2qtjkzuN5aGQ5Ava_KRZNQhNVfrwYerMUOpK0UeHdk3iqhWsJ2cGL4F2Dr-MAlmqDqglt3XVh_WzR6NUWMQZt7TqkhAtN7GLBgm3enpJfT5iyQavFUQNoZA"
-     */
     val signer = Signature.getInstance("SHA256withRSA")
     signer.initSign(privateKey)
     signer.update(data)
