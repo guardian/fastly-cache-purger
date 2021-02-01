@@ -3,7 +3,6 @@ package com.gu.fastly
 import java.util.Properties
 import scala.util.Try
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
-import com.amazonaws.util.IOUtils
 
 case class Config(
   fastlyDotcomServiceId: String,
@@ -11,8 +10,7 @@ case class Config(
   fastlyApiNextgenServiceId: String,
   fastlyDotcomApiKey: String,
   fastlyMapiApiKey: String,
-  decachedContentTopic: String,
-  ampFlusherPrivateKey: Array[Byte]
+  decachedContentTopic: String
 )
 
 object Config {
@@ -40,8 +38,7 @@ object Config {
       fastlyGuardianAppsServiceId,
       fastlyDotcomApiKey,
       fastlyMapiApiKey,
-      decachedContentTopic,
-      getAmpFlusherPrivateKey()
+      decachedContentTopic
     )
   }
 
@@ -56,11 +53,5 @@ object Config {
   private def getMandatoryConfig(config: Properties, key: String) =
     Option(config.getProperty(key)) getOrElse sys.error(s"''$key' property missing.")
 
-  private def getAmpFlusherPrivateKey(): Array[Byte] = {
-    val inputStream = s3.getObject("fastly-cache-purger-config", "amp-flusher-private-key.der").getObjectContent()
-    val key: Array[Byte] = IOUtils.toByteArray(inputStream)
-    inputStream.close()
-    key
-  }
 }
 
