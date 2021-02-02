@@ -10,6 +10,8 @@ object AmpFlusher {
 
   // This object implements AMP flush/delete according to https://developers.google.com/amp/cache/update-cache
 
+  // There also is this documentation: fastly-cache-purger/docs/Google AMP Cache Flush
+
   private val httpClient = new OkHttpClient()
   private val config = Config.load()
 
