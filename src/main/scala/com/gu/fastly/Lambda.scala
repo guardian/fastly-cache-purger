@@ -35,20 +35,46 @@ class Lambda {
 
     val successfulPurges = CrierEventProcessor.process(distinctContentEvents) { event =>
       (event.itemType, event.eventType) match {
-        case (ItemType.Content, EventType.Delete) =>
-          sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
+        case (ItemType.Content, EventType.Delete) => {
+          val dotcomCanonicalPurge = sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
+          // Why is there no MAPI purge here?
+          val dotcomAliasPurges = extractAliasPaths(event).fold(Seq.empty[Boolean])({
+            _.map { aliasPath =>
+              sendFastlyPurgeRequestAndAmpPingRequest(aliasPath, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(aliasPath), config.fastlyDotcomApiKey)
+            }
+          })
+          dotcomCanonicalPurge && !dotcomAliasPurges.contains(false)
+        }
 
         case (ItemType.Content, EventType.Update) =>
           val contentType = extractUpdateContentType(event)
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
-          sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey, contentType)
+          val dotcomCanonicalPurge = sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
+          val jsonPurge = sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
+          val mapiCanonicalPurge = sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey, contentType)
+          val aliasPurges = extractAliasPaths(event).fold(Seq.empty[Boolean])({
+            _.map { aliasPath =>
+              val dotcomAliasPurge = sendFastlyPurgeRequest(aliasPath, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(aliasPath), config.fastlyDotcomApiKey, contentType)
+              val jsonAliasPurge = sendFastlyPurgeRequestForAjaxFile(aliasPath, contentType)
+              val mapiAliasPurge = sendFastlyPurgeRequest(aliasPath, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(aliasPath), config.fastlyMapiApiKey, contentType)
+              dotcomAliasPurge && jsonAliasPurge && mapiAliasPurge
+            }
+          })
+          dotcomCanonicalPurge && jsonPurge && mapiCanonicalPurge && !aliasPurges.contains(false)
 
         case (ItemType.Content, EventType.RetrievableUpdate) =>
           val contentType = extractUpdateContentType(event)
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
-          sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey, contentType)
+          val dotcomCanonicalPurge = sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
+          val jsonCanonicalPurge = sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
+          val mapiCanonicalPurge = sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey, contentType)
+          val aliasPurges = extractAliasPaths(event).fold(Seq.empty[Boolean])({
+            _.map { aliasPath =>
+              val dotcomAliasPurge = sendFastlyPurgeRequest(aliasPath, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(aliasPath), config.fastlyDotcomApiKey, contentType)
+              val jsonAliasPurge = sendFastlyPurgeRequestForAjaxFile(aliasPath, contentType)
+              val mapiAliasPurge = sendFastlyPurgeRequest(aliasPath, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(aliasPath), config.fastlyMapiApiKey, contentType)
+              dotcomAliasPurge && jsonAliasPurge && mapiAliasPurge
+            }
+          })
+          dotcomCanonicalPurge && jsonCanonicalPurge && mapiCanonicalPurge && !aliasPurges.contains(false)
 
         case other =>
           // for now we only send purges for content, so ignore any other events
@@ -141,6 +167,17 @@ class Lambda {
     sendPurgeCountMetric(contentType)
 
     purged
+  }
+
+  private def extractAliasPaths(event: Event): Option[Seq[String]] = {
+    event.payload.flatMap { payload =>
+      payload match {
+        case EventPayload.DeletedContent(deleted) => deleted.aliasPaths
+        case EventPayload.Content(content) => content.aliasPaths
+        case EventPayload.RetrievableContent(retrievable) => retrievable.aliasPaths
+        case _ => None
+      }
+    }
   }
 
   private def extractUpdateContentType(event: Event): Option[ContentType] = {
