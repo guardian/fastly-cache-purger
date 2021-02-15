@@ -1,7 +1,7 @@
 package com.gu.fastly
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
-import com.amazonaws.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataRequest, StandardUnit}
+import com.amazonaws.services.cloudwatch.model.{ Dimension, MetricDatum, PutMetricDataRequest, StandardUnit }
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
@@ -10,7 +10,6 @@ import com.amazonaws.services.sns.model.PublishRequest
 import com.gu.contentapi.client.model.v1.ContentType
 import com.gu.crier.model.event.v1._
 import com.gu.fastly.model.event.v1.ContentDecachedEvent
-import com.gu.googleamp.AmpFlusher
 import okhttp3._
 import org.apache.commons.codec.digest.DigestUtils
 
@@ -47,6 +46,37 @@ class Lambda {
     dotcomCanonicalPurge && jsonCanonicalPurge && mapiCanonicalPurge && !aliasPurges.contains(false)
   }
 
+  private def makeContentDecachedEventsFromCrierEvent(crierEvent: com.gu.crier.model.event.v1.Event): Seq[ContentDecachedEvent] = {
+    // if an update or delete from Crier features a content item with
+    // aliasPaths, we must raise de-cache events for the current path and
+    // all aliases
+    val fastlyEventType = crierEvent.eventType match {
+      case EventType.Delete => com.gu.fastly.model.event.v1.EventType.Delete
+      case _ => com.gu.fastly.model.event.v1.EventType.Update
+    }
+    val contentType = extractUpdateContentType(crierEvent)
+    val aliasPaths = extractAliasPaths(crierEvent)
+    // Always raise an event for the current canonical path (sent via the
+    // crier event's payloadId)
+    val canonicalDecachedEvent = ContentDecachedEvent(
+      crierEvent.payloadId,
+      fastlyEventType,
+      contentType
+    )
+    // If we have aliasPaths, generate their de-cached events too.
+    // Note: If there are no aliasPaths we'll just emit a Seq of one
+    // containing the above canonical de-cached event
+    aliasPaths.fold(Seq(canonicalDecachedEvent)) { paths =>
+      paths.map { path =>
+        ContentDecachedEvent(
+          path,
+          fastlyEventType,
+          contentType
+        )
+      }
+    }
+  }
+
   def handle(event: KinesisEvent) {
     val rawRecords: List[Record] = event.getRecords.asScala.map(_.getKinesis).toList
     val userRecords = UserRecord.deaggregate(rawRecords.asJava)
@@ -67,46 +97,22 @@ class Lambda {
       }
     }
 
-    // Republish events for successful deletes and updates as
+    // At this point, successfulPurges is a filtered list of all fastly requests that
+    // were fully successful (i.e. where _all_ de-cache requests returned a 200 response)
+    //
+    // Now we can notify consumers that listen for successful de-cache events by sending
     // com.gu.crier.model.event.v1.Event events thrift serialized and base64 encoded
-    successfulPurges.foreach { event =>
-      val supportedDecacheEventType = event.eventType match {
-        case EventType.Update => Some(com.gu.fastly.model.event.v1.EventType.Update)
-        case EventType.Delete => Some(com.gu.fastly.model.event.v1.EventType.Delete)
-        case _ => None
-      }
-
-      val contentType = extractUpdateContentType(event)
-      val aliasPaths = extractAliasPaths(event)
-
-      supportedDecacheEventType.map { decacheEventType =>
-        // generate a seq of de-cached events starting with the contentId then
-        // joining on any that are required for content aliases (evolved URLs)
-        val contentDecachedEvents = Seq(ContentDecachedEvent(
-          contentId = event.payloadId,
-          eventType = decacheEventType,
-          contentType = contentType
-        )) ++ aliasPaths.fold(Seq.empty[ContentDecachedEvent])({
-          _.map { aliasPath =>
-            ContentDecachedEvent(
-              contentId = aliasPath,
-              eventType = decacheEventType,
-              contentType = contentType
-            )
-          }
-        })
-
-        try {
-          contentDecachedEvents.map { contentDecache =>
-            val publishRequest = new PublishRequest()
-            publishRequest.setTopicArn(config.decachedContentTopic)
-            publishRequest.setMessage(ContentDecachedEventSerializer.serialize(contentDecache))
-            snsClient.publish(publishRequest)
-          }
-        } catch {
-          case t: Throwable =>
-            println("Warning; publish sns decached event failed: ${t.getMessage}")
+    successfulPurges.foreach { crierEvent =>
+      try {
+        makeContentDecachedEventsFromCrierEvent(crierEvent).map { decachedEvent =>
+          val publishRequest = new PublishRequest()
+          publishRequest.setTopicArn(config.decachedContentTopic)
+          publishRequest.setMessage(ContentDecachedEventSerializer.serialize(decachedEvent))
+          snsClient.publish(publishRequest)
         }
+      } catch {
+        case t: Throwable =>
+          println("Warning; publish sns decached event failed: ${t.getMessage}")
       }
     }
 
@@ -129,12 +135,13 @@ class Lambda {
     dotcomSurrogateKey
   }
 
-  private def sendFastlyPurgeRequestAndAmpPingRequest(contentId: String, purgeType: PurgeType, serviceId: String, surrogateKey: String, fastlyApiKey: String): Boolean = {
-    if (sendFastlyPurgeRequest(contentId, purgeType, serviceId, surrogateKey, fastlyApiKey))
-      AmpFlusher.sendAmpDeleteRequest(contentId)
-    else
-      false
-  }
+  // TODO: This appears to be unused - delete it?
+  //  private def sendFastlyPurgeRequestAndAmpPingRequest(contentId: String, purgeType: PurgeType, serviceId: String, surrogateKey: String, fastlyApiKey: String): Boolean = {
+  //    if (sendFastlyPurgeRequest(contentId, purgeType, serviceId, surrogateKey, fastlyApiKey))
+  //      AmpFlusher.sendAmpDeleteRequest(contentId)
+  //    else
+  //      false
+  //  }
 
   private def sendFastlyPurgeRequestForAjaxFile(contentId: String, contentType: Option[ContentType]) = {
     sendFastlyPurgeRequest(s"${contentId}.json", Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(s"${contentId}.json"), config.fastlyDotcomApiKey, contentType)
