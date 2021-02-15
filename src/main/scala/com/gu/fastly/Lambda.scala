@@ -135,14 +135,6 @@ class Lambda {
     dotcomSurrogateKey
   }
 
-  // TODO: This appears to be unused - delete it?
-  //  private def sendFastlyPurgeRequestAndAmpPingRequest(contentId: String, purgeType: PurgeType, serviceId: String, surrogateKey: String, fastlyApiKey: String): Boolean = {
-  //    if (sendFastlyPurgeRequest(contentId, purgeType, serviceId, surrogateKey, fastlyApiKey))
-  //      AmpFlusher.sendAmpDeleteRequest(contentId)
-  //    else
-  //      false
-  //  }
-
   private def sendFastlyPurgeRequestForAjaxFile(contentId: String, contentType: Option[ContentType]) = {
     sendFastlyPurgeRequest(s"${contentId}.json", Soft, config.fastlyApiNextgenServiceId, makeDotcomSurrogateKey(s"${contentId}.json"), config.fastlyDotcomApiKey, contentType)
   }
