@@ -1,7 +1,7 @@
 package com.gu.fastly
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
-import com.amazonaws.services.cloudwatch.model.{ Dimension, MetricDatum, PutMetricDataRequest, StandardUnit }
+import com.amazonaws.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataRequest, StandardUnit}
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
@@ -9,6 +9,7 @@ import com.amazonaws.services.sns.AmazonSNSClientBuilder
 import com.amazonaws.services.sns.model.PublishRequest
 import com.gu.contentapi.client.model.v1.ContentType
 import com.gu.crier.model.event.v1._
+import com.gu.fastly.model.event.v1.ContentDecachedEvent
 import com.gu.googleamp.AmpFlusher
 import okhttp3._
 import org.apache.commons.codec.digest.DigestUtils
@@ -76,18 +77,32 @@ class Lambda {
       }
 
       val contentType = extractUpdateContentType(event)
+      val aliasPaths = extractAliasPaths(event)
 
       supportedDecacheEventType.map { decacheEventType =>
-        val contentDecachedEvent = com.gu.fastly.model.event.v1.ContentDecachedEvent(
+        // generate a seq of de-cached events starting with the contentId then
+        // joining on any that are required for content aliases (evolved URLs)
+        val contentDecachedEvents = Seq(ContentDecachedEvent(
           contentId = event.payloadId,
           eventType = decacheEventType,
           contentType = contentType
-        )
+        )) ++ aliasPaths.fold(Seq.empty[ContentDecachedEvent])({
+          _.map { aliasPath =>
+            ContentDecachedEvent(
+              contentId = aliasPath,
+              eventType = decacheEventType,
+              contentType = contentType
+            )
+          }
+        })
+
         try {
-          val publishRequest = new PublishRequest()
-          publishRequest.setTopicArn(config.decachedContentTopic)
-          publishRequest.setMessage(ContentDecachedEventSerializer.serialize(contentDecachedEvent))
-          snsClient.publish(publishRequest)
+          contentDecachedEvents.map { contentDecache =>
+            val publishRequest = new PublishRequest()
+            publishRequest.setTopicArn(config.decachedContentTopic)
+            publishRequest.setMessage(ContentDecachedEventSerializer.serialize(contentDecache))
+            snsClient.publish(publishRequest)
+          }
         } catch {
           case t: Throwable =>
             println("Warning; publish sns decached event failed: ${t.getMessage}")
