@@ -1,7 +1,7 @@
 package com.gu.fastly
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
-import com.amazonaws.services.cloudwatch.model.{ Dimension, MetricDatum, PutMetricDataRequest, StandardUnit }
+import com.amazonaws.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataRequest, StandardUnit}
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
@@ -10,6 +10,7 @@ import com.amazonaws.services.sns.model.PublishRequest
 import com.gu.contentapi.client.model.v1.ContentType
 import com.gu.crier.model.event.v1._
 import com.gu.fastly.model.event.v1.ContentDecachedEvent
+import com.gu.googleamp.AmpFlusher
 import okhttp3._
 import org.apache.commons.codec.digest.DigestUtils
 
@@ -88,6 +89,18 @@ class Lambda {
         case _ =>
           // for now we only send purges for content, so ignore any other events
           false
+      }
+    }
+
+    // Post decache actions
+    // TODO At this point we should be talking about successfully purged paths not crier events.
+    // We should be talking about a list of post purge actions to be performing on these path
+    // rather than these 2 distinct blocks of code
+
+    // Purge AMP pages
+    successfulPurges.foreach { crierEvent =>
+      if (crierEvent.itemType == ItemType.Content && crierEvent.eventType == EventType.Delete) {
+        AmpFlusher.sendAmpDeleteRequest(crierEvent.payloadId)
       }
     }
 
