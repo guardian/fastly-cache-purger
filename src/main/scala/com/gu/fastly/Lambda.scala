@@ -38,7 +38,7 @@ class Lambda {
     def jsonAliasPurge(path: String) = sendFastlyPurgeRequestForAjaxFile(path, contentType)
     def mapiAliasPurge(path: String) = sendFastlyPurgeRequest(path, purgeType, config.fastlyMapiServiceId, makeMapiSurrogateKey(path), config.fastlyMapiApiKey, contentType)
 
-    val purgesToPreform: Seq[String => Boolean] = purgeType match {
+    val purgesToPerform: Seq[String => Boolean] = purgeType match {
       case Hard => Seq(dotcomAliasPurge)
       case Soft => Seq(dotcomAliasPurge, jsonAliasPurge, mapiAliasPurge)
     }
@@ -46,7 +46,7 @@ class Lambda {
     val pathsToPurge = Seq(event.payloadId) ++ extractAliasPaths(event)
 
     pathsToPurge.flatMap { path =>
-      purgesToPreform.map(purge => purge(path))
+      purgesToPerform.map(purge => purge(path))
     }.forall(_ == true)
   }
 
