@@ -24,26 +24,29 @@ class Lambda {
   private val snsClient = AmazonSNSClientBuilder.defaultClient
 
   private def raiseAllThePurges(event: Event): Boolean = {
+    // For a given content type event purge all of the paths associated with it.
+    // Use a Fastly Hard purge if the event is a delete.
+
     val contentType = extractUpdateContentType(event)
-    val purgeType = if (event.eventType == EventType.Delete) {
-      Hard
-    } else {
-      Soft
+    val purgeType = event.eventType match {
+      case EventType.Delete => Hard
+      case _ => Soft
     }
-    val aliasPaths = extractAliasPaths(event)
-    val dotcomCanonicalPurge = sendFastlyPurgeRequest(event.payloadId, purgeType, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
-    val jsonCanonicalPurge = sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
-    val mapiCanonicalPurge = sendFastlyPurgeRequest(event.payloadId, purgeType, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey, contentType)
-    val aliasPurges = aliasPaths.fold(Seq.empty[Boolean])({
-      _.map { aliasPath =>
-        val dotcomAliasPurge = sendFastlyPurgeRequest(aliasPath, purgeType, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(aliasPath), config.fastlyDotcomApiKey, contentType)
-        val jsonAliasPurge = sendFastlyPurgeRequestForAjaxFile(aliasPath, contentType)
-        val mapiAliasPurge = sendFastlyPurgeRequest(aliasPath, purgeType, config.fastlyMapiServiceId, makeMapiSurrogateKey(aliasPath), config.fastlyMapiApiKey, contentType)
-        dotcomAliasPurge && jsonAliasPurge && mapiAliasPurge
-      }
-    })
-    // all or nothing result
-    dotcomCanonicalPurge && jsonCanonicalPurge && mapiCanonicalPurge && !aliasPurges.contains(false)
+
+    def dotcomAliasPurge(path: String) = sendFastlyPurgeRequest(path, purgeType, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(path), config.fastlyDotcomApiKey, contentType)
+    def jsonAliasPurge(path: String) = sendFastlyPurgeRequestForAjaxFile(path, contentType)
+    def mapiAliasPurge(path: String) = sendFastlyPurgeRequest(path, purgeType, config.fastlyMapiServiceId, makeMapiSurrogateKey(path), config.fastlyMapiApiKey, contentType)
+
+    val purgesToPreform: Seq[String => Boolean] = purgeType match {
+      case Hard => Seq(dotcomAliasPurge)
+      case Soft => Seq(dotcomAliasPurge, jsonAliasPurge, mapiAliasPurge)
+    }
+
+    val pathsToPurge = Seq(event.payloadId) ++ extractAliasPaths(event)
+
+    pathsToPurge.flatMap { path =>
+      purgesToPreform.map(purge => purge(path))
+    }.forall(_ == true)
   }
 
   private def makeContentDecachedEventsFromCrierEvent(crierEvent: com.gu.crier.model.event.v1.Event): Seq[ContentDecachedEvent] = {
@@ -54,26 +57,17 @@ class Lambda {
       case EventType.Delete => com.gu.fastly.model.event.v1.EventType.Delete
       case _ => com.gu.fastly.model.event.v1.EventType.Update
     }
+
+    // Content type and alias path extraction are done upstream and can be deduplicated in the future
     val contentType = extractUpdateContentType(crierEvent)
-    val aliasPaths = extractAliasPaths(crierEvent)
-    // Always raise an event for the current canonical path (sent via the
-    // crier event's payloadId)
-    val canonicalDecachedEvent = ContentDecachedEvent(
-      crierEvent.payloadId,
-      fastlyEventType,
-      contentType
-    )
-    // If we have aliasPaths, generate their de-cached events too.
-    // Note: If there are no aliasPaths we'll just emit a Seq of one
-    // containing the above canonical de-cached event
-    aliasPaths.fold(Seq(canonicalDecachedEvent)) { paths =>
-      paths.map { path =>
-        ContentDecachedEvent(
-          path,
-          fastlyEventType,
-          contentType
-        )
-      }
+    val eventPaths = Seq(crierEvent.payloadId) ++ extractAliasPaths(crierEvent)
+
+    eventPaths.map { path =>
+      ContentDecachedEvent(
+        path,
+        fastlyEventType,
+        contentType
+      )
     }
   }
 
@@ -167,7 +161,7 @@ class Lambda {
     purged
   }
 
-  private def extractAliasPaths(event: Event): Option[Seq[String]] = {
+  private def extractAliasPaths(event: Event): Seq[String] = {
     event.payload.flatMap { payload =>
       payload match {
         case EventPayload.DeletedContent(deleted) => deleted.aliasPaths
@@ -175,7 +169,7 @@ class Lambda {
         case EventPayload.RetrievableContent(retrievable) => retrievable.aliasPaths
         case _ => None
       }
-    }
+    }.getOrElse(Seq.empty)
   }
 
   private def extractUpdateContentType(event: Event): Option[ContentType] = {
