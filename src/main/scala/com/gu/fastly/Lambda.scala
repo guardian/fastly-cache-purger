@@ -24,7 +24,7 @@ class Lambda {
   private val cloudWatchClient = AmazonCloudWatchClientBuilder.defaultClient
   private val snsClient = AmazonSNSClientBuilder.defaultClient
 
-  private def raiseAllThePurges(event: Event): Boolean = {
+  private def raiseAllThePurges(event: Event): Option[Decache] = {
     // For a given content type event purge all of the paths associated with it.
     // Use a Fastly Hard purge if the event is a delete.
 
@@ -45,9 +45,15 @@ class Lambda {
 
     val pathsToPurge = Seq(event.payloadId) ++ extractAliasPaths(event)
 
-    pathsToPurge.flatMap { path =>
+    val wasSuccessful: Boolean = pathsToPurge.flatMap { path =>
       purgesToPerform.map(purge => purge(path))
     }.forall(_ == true)
+
+    if (wasSuccessful) {
+      Some(Decache(eventType = event.eventType, paths = pathsToPurge, contentType = contentType))
+    } else {
+      None
+    }
   }
 
   private def makeContentDecachedEventsFromDecache(decache: Decache): Seq[ContentDecachedEvent] = {
@@ -75,26 +81,18 @@ class Lambda {
     println(s"Processing ${userRecords.size} records ...")
     val events = CrierEventDeserializer.deserializeEvents(userRecords.asScala)
 
-    val successfulPurges = CrierEventProcessor.process(events) { event =>
+    val successfulContentDecaches = CrierEventProcessor.process(events) { event =>
       event.itemType match {
         case ItemType.Content =>
           raiseAllThePurges(event)
         case _ =>
           // for now we only send purges for content, so ignore any other events
-          false
+          None
       }
     }
 
     // Post decache actions
-    // TODO At this point we should be talking about successfully purged paths not crier events.
     // We should be talking about a list of post purge actions to be performing on these path
-    // rather than these 2 distinct blocks of code
-
-    // Collect the required information about decached paths; we will push this back up
-    // and ask the process function to return it
-    val successfulContentDecaches = successfulPurges.map { crierEvent =>
-      Decache(crierEvent.eventType, Seq(crierEvent.payloadId) ++ extractAliasPaths(crierEvent), extractUpdateContentType(crierEvent))
-    }
 
     // Purge AMP pages
     successfulContentDecaches.foreach { decache =>
@@ -226,6 +224,6 @@ class Lambda {
     }
   }
 
-  case class Decache(eventType: EventType, paths: Seq[String], contentType: Option[ContentType])
-
 }
+
+case class Decache(eventType: EventType, paths: Seq[String], contentType: Option[ContentType])
