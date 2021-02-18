@@ -100,7 +100,10 @@ class Lambda {
     // Purge AMP pages
     successfulPurges.foreach { crierEvent =>
       if (crierEvent.itemType == ItemType.Content && crierEvent.eventType == EventType.Delete) {
-        AmpFlusher.sendAmpDeleteRequest(crierEvent.payloadId)
+        val eventPaths = Seq(crierEvent.payloadId) ++ extractAliasPaths(crierEvent)
+        eventPaths.foreach { path =>
+          AmpFlusher.sendAmpDeleteRequest(path)
+        }
       }
     }
 
