@@ -1,7 +1,7 @@
 package com.gu.fastly
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
-import com.amazonaws.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataRequest, StandardUnit}
+import com.amazonaws.services.cloudwatch.model.{ Dimension, MetricDatum, PutMetricDataRequest, StandardUnit }
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
@@ -50,24 +50,20 @@ class Lambda {
     }.forall(_ == true)
   }
 
-  private def makeContentDecachedEventsFromCrierEvent(crierEvent: com.gu.crier.model.event.v1.Event): Seq[ContentDecachedEvent] = {
+  private def makeContentDecachedEventsFromDecache(decache: Decache): Seq[ContentDecachedEvent] = {
     // if an update or delete from Crier features a content item with
     // aliasPaths, we must raise de-cache events for the current path and
     // all aliases
-    val fastlyEventType = crierEvent.eventType match {
+    val fastlyEventType = decache.eventType match {
       case EventType.Delete => com.gu.fastly.model.event.v1.EventType.Delete
       case _ => com.gu.fastly.model.event.v1.EventType.Update
     }
 
-    // Content type and alias path extraction are done upstream and can be deduplicated in the future
-    val contentType = extractUpdateContentType(crierEvent)
-    val eventPaths = Seq(crierEvent.payloadId) ++ extractAliasPaths(crierEvent)
-
-    eventPaths.map { path =>
+    decache.paths.map { path =>
       ContentDecachedEvent(
         path,
         fastlyEventType,
-        contentType
+        decache.contentType
       )
     }
   }
@@ -94,11 +90,16 @@ class Lambda {
     // We should be talking about a list of post purge actions to be performing on these path
     // rather than these 2 distinct blocks of code
 
+    // Collect the required information about decached paths; we will push this back up
+    // and ask the process function to return it
+    val successfulContentDecaches = successfulPurges.map { crierEvent =>
+      Decache(crierEvent.eventType, Seq(crierEvent.payloadId) ++ extractAliasPaths(crierEvent), extractUpdateContentType(crierEvent))
+    }
+
     // Purge AMP pages
-    successfulPurges.foreach { crierEvent =>
-      if (crierEvent.itemType == ItemType.Content && crierEvent.eventType == EventType.Delete) {
-        val eventPaths = Seq(crierEvent.payloadId) ++ extractAliasPaths(crierEvent)
-        eventPaths.foreach { path =>
+    successfulContentDecaches.foreach { decache =>
+      if (decache.eventType == EventType.Delete) {
+        decache.paths.foreach { path =>
           AmpFlusher.sendAmpDeleteRequest(path)
         }
       }
@@ -109,9 +110,9 @@ class Lambda {
     //
     // Now we can notify consumers that listen for successful de-cache events by sending
     // com.gu.crier.model.event.v1.Event events thrift serialized and base64 encoded
-    successfulPurges.foreach { crierEvent =>
+    successfulContentDecaches.foreach { decache =>
       try {
-        makeContentDecachedEventsFromCrierEvent(crierEvent).map { decachedEvent =>
+        makeContentDecachedEventsFromDecache(decache).map { decachedEvent =>
           val publishRequest = new PublishRequest()
           publishRequest.setTopicArn(config.decachedContentTopic)
           publishRequest.setMessage(ContentDecachedEventSerializer.serialize(decachedEvent))
@@ -224,5 +225,7 @@ class Lambda {
         println("Warning; cloudwatch metrics ping failed: " + t.getMessage)
     }
   }
+
+  case class Decache(eventType: EventType, paths: Seq[String], contentType: Option[ContentType])
 
 }
