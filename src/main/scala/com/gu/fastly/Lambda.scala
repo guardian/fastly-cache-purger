@@ -1,7 +1,7 @@
 package com.gu.fastly
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
-import com.amazonaws.services.cloudwatch.model.{ Dimension, MetricDatum, PutMetricDataRequest, StandardUnit }
+import com.amazonaws.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataRequest, StandardUnit}
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
@@ -9,6 +9,7 @@ import com.amazonaws.services.sns.AmazonSNSClientBuilder
 import com.amazonaws.services.sns.model.PublishRequest
 import com.gu.contentapi.client.model.v1.ContentType
 import com.gu.crier.model.event.v1._
+import com.gu.fastly.model.event.v1.ContentDecachedEvent
 import com.gu.googleamp.AmpFlusher
 import okhttp3._
 import org.apache.commons.codec.digest.DigestUtils
@@ -23,6 +24,54 @@ class Lambda {
   private val cloudWatchClient = AmazonCloudWatchClientBuilder.defaultClient
   private val snsClient = AmazonSNSClientBuilder.defaultClient
 
+  private def raiseAllThePurges(event: Event): Boolean = {
+    // For a given content type event purge all of the paths associated with it.
+    // Use a Fastly Hard purge if the event is a delete.
+
+    val contentType = extractUpdateContentType(event)
+    val purgeType = event.eventType match {
+      case EventType.Delete => Hard
+      case _ => Soft
+    }
+
+    def dotcomAliasPurge(path: String) = sendFastlyPurgeRequest(path, purgeType, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(path), config.fastlyDotcomApiKey, contentType)
+    def jsonAliasPurge(path: String) = sendFastlyPurgeRequestForAjaxFile(path, contentType)
+    def mapiAliasPurge(path: String) = sendFastlyPurgeRequest(path, purgeType, config.fastlyMapiServiceId, makeMapiSurrogateKey(path), config.fastlyMapiApiKey, contentType)
+
+    val purgesToPerform: Seq[String => Boolean] = purgeType match {
+      case Hard => Seq(dotcomAliasPurge)
+      case Soft => Seq(dotcomAliasPurge, jsonAliasPurge, mapiAliasPurge)
+    }
+
+    val pathsToPurge = Seq(event.payloadId) ++ extractAliasPaths(event)
+
+    pathsToPurge.flatMap { path =>
+      purgesToPerform.map(purge => purge(path))
+    }.forall(_ == true)
+  }
+
+  private def makeContentDecachedEventsFromCrierEvent(crierEvent: com.gu.crier.model.event.v1.Event): Seq[ContentDecachedEvent] = {
+    // if an update or delete from Crier features a content item with
+    // aliasPaths, we must raise de-cache events for the current path and
+    // all aliases
+    val fastlyEventType = crierEvent.eventType match {
+      case EventType.Delete => com.gu.fastly.model.event.v1.EventType.Delete
+      case _ => com.gu.fastly.model.event.v1.EventType.Update
+    }
+
+    // Content type and alias path extraction are done upstream and can be deduplicated in the future
+    val contentType = extractUpdateContentType(crierEvent)
+    val eventPaths = Seq(crierEvent.payloadId) ++ extractAliasPaths(crierEvent)
+
+    eventPaths.map { path =>
+      ContentDecachedEvent(
+        path,
+        fastlyEventType,
+        contentType
+      )
+    }
+  }
+
   def handle(event: KinesisEvent) {
     val rawRecords: List[Record] = event.getRecords.asScala.map(_.getKinesis).toList
     val userRecords = UserRecord.deaggregate(rawRecords.asJava)
@@ -34,54 +83,46 @@ class Lambda {
     println(s"Processing ${distinctContentEvents.size} distinct content events from batch of ${events.size} events...")
 
     val successfulPurges = CrierEventProcessor.process(distinctContentEvents) { event =>
-      (event.itemType, event.eventType) match {
-        case (ItemType.Content, EventType.Delete) =>
-          sendFastlyPurgeRequestAndAmpPingRequest(event.payloadId, Hard, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey)
-
-        case (ItemType.Content, EventType.Update) =>
-          val contentType = extractUpdateContentType(event)
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
-          sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey, contentType)
-
-        case (ItemType.Content, EventType.RetrievableUpdate) =>
-          val contentType = extractUpdateContentType(event)
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyDotcomServiceId, makeDotcomSurrogateKey(event.payloadId), config.fastlyDotcomApiKey, contentType)
-          sendFastlyPurgeRequestForAjaxFile(event.payloadId, contentType)
-          sendFastlyPurgeRequest(event.payloadId, Soft, config.fastlyMapiServiceId, makeMapiSurrogateKey(event.payloadId), config.fastlyMapiApiKey, contentType)
-
-        case other =>
+      (event.itemType) match {
+        case ItemType.Content =>
+          raiseAllThePurges(event)
+        case _ =>
           // for now we only send purges for content, so ignore any other events
           false
       }
     }
 
-    // Republish events for successful deletes and updates as
-    // com.gu.crier.model.event.v1.Event events thrift serialized and base64 encoded
-    successfulPurges.foreach { event =>
-      val supportedDecacheEventType = event.eventType match {
-        case EventType.Update => Some(com.gu.fastly.model.event.v1.EventType.Update)
-        case EventType.Delete => Some(com.gu.fastly.model.event.v1.EventType.Delete)
-        case _ => None
+    // Post decache actions
+    // TODO At this point we should be talking about successfully purged paths not crier events.
+    // We should be talking about a list of post purge actions to be performing on these path
+    // rather than these 2 distinct blocks of code
+
+    // Purge AMP pages
+    successfulPurges.foreach { crierEvent =>
+      if (crierEvent.itemType == ItemType.Content && crierEvent.eventType == EventType.Delete) {
+        val eventPaths = Seq(crierEvent.payloadId) ++ extractAliasPaths(crierEvent)
+        eventPaths.foreach { path =>
+          AmpFlusher.sendAmpDeleteRequest(path)
+        }
       }
+    }
 
-      val contentType = extractUpdateContentType(event)
-
-      supportedDecacheEventType.map { decacheEventType =>
-        val contentDecachedEvent = com.gu.fastly.model.event.v1.ContentDecachedEvent(
-          contentId = event.payloadId,
-          eventType = decacheEventType,
-          contentType = contentType
-        )
-        try {
+    // At this point, successfulPurges is a filtered list of all fastly requests that
+    // were fully successful (i.e. where _all_ de-cache requests returned a 200 response)
+    //
+    // Now we can notify consumers that listen for successful de-cache events by sending
+    // com.gu.crier.model.event.v1.Event events thrift serialized and base64 encoded
+    successfulPurges.foreach { crierEvent =>
+      try {
+        makeContentDecachedEventsFromCrierEvent(crierEvent).map { decachedEvent =>
           val publishRequest = new PublishRequest()
           publishRequest.setTopicArn(config.decachedContentTopic)
-          publishRequest.setMessage(ContentDecachedEventSerializer.serialize(contentDecachedEvent))
+          publishRequest.setMessage(ContentDecachedEventSerializer.serialize(decachedEvent))
           snsClient.publish(publishRequest)
-        } catch {
-          case t: Throwable =>
-            println("Warning; publish sns decached event failed: ${t.getMessage}")
         }
+      } catch {
+        case t: Throwable =>
+          println("Warning; publish sns decached event failed: ${t.getMessage}")
       }
     }
 
@@ -102,13 +143,6 @@ class Lambda {
     val contentPath = s"/$contentId"
     val dotcomSurrogateKey = DigestUtils.md5Hex(contentPath)
     dotcomSurrogateKey
-  }
-
-  private def sendFastlyPurgeRequestAndAmpPingRequest(contentId: String, purgeType: PurgeType, serviceId: String, surrogateKey: String, fastlyApiKey: String): Boolean = {
-    if (sendFastlyPurgeRequest(contentId, purgeType, serviceId, surrogateKey, fastlyApiKey))
-      AmpFlusher.sendAmpDeleteRequest(contentId)
-    else
-      false
   }
 
   private def sendFastlyPurgeRequestForAjaxFile(contentId: String, contentType: Option[ContentType]) = {
@@ -141,6 +175,17 @@ class Lambda {
     sendPurgeCountMetric(contentType)
 
     purged
+  }
+
+  private def extractAliasPaths(event: Event): Seq[String] = {
+    event.payload.flatMap { payload =>
+      payload match {
+        case EventPayload.DeletedContent(deleted) => deleted.aliasPaths
+        case EventPayload.Content(content) => content.aliasPaths
+        case EventPayload.RetrievableContent(retrievable) => retrievable.aliasPaths
+        case _ => None
+      }
+    }.getOrElse(Seq.empty)
   }
 
   private def extractUpdateContentType(event: Event): Option[ContentType] = {
