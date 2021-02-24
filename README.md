@@ -1,6 +1,6 @@
 # Fastly cache purger
 
-Fastly as our CDN. 
+Fastly is our CDN. 
 
 The Fastly cache purger listens for content update messages and uses the Fastly API to decache the effected content paths.
 
