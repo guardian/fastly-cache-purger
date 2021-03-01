@@ -79,11 +79,8 @@ class Lambda {
     println(s"Processing ${userRecords.size} records ...")
     val events = CrierEventDeserializer.deserializeEvents(userRecords.asScala)
 
-    val distinctContentEvents = UpdateDeduplicator.filterAndDeduplicateContentEvents(events)
-    println(s"Processing ${distinctContentEvents.size} distinct content events from batch of ${events.size} events...")
-
-    val successfulPurges = CrierEventProcessor.process(distinctContentEvents) { event =>
-      (event.itemType) match {
+    val successfulPurges = CrierEventProcessor.process(events) { event =>
+      event.itemType match {
         case ItemType.Content =>
           raiseAllThePurges(event)
         case _ =>
