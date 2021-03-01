@@ -53,7 +53,7 @@ Resources:
   LambdaKinesisEvent:
     Type: AWS::Lambda::EventSourceMapping
     Properties:
-      BatchSize: 100
+      BatchSize: 1
       EventSourceArn: !Sub "arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${KinesisStream}"
       FunctionName: !Ref Lambda
       StartingPosition: TRIM_HORIZON
