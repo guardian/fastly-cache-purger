@@ -1,13 +1,13 @@
 package com.gu.fastly
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
-import com.amazonaws.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataRequest, StandardUnit}
+import com.amazonaws.services.cloudwatch.model.{ Dimension, MetricDatum, PutMetricDataRequest, StandardUnit }
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
 import com.amazonaws.services.sns.AmazonSNSClientBuilder
 import com.amazonaws.services.sns.model.PublishRequest
-import com.gu.contentapi.client.model.v1.ContentType
+import com.gu.contentapi.client.model.v1.{ AliasPath, ContentType }
 import com.gu.crier.model.event.v1._
 import com.gu.fastly.model.event.v1.ContentDecachedEvent
 import com.gu.googleamp.AmpFlusher
@@ -175,14 +175,15 @@ class Lambda {
   }
 
   private def extractAliasPaths(event: Event): Seq[String] = {
-    event.payload.flatMap { payload =>
-      payload match {
-        case EventPayload.DeletedContent(deleted) => deleted.aliasPaths
-        case EventPayload.Content(content) => content.aliasPaths
-        case EventPayload.RetrievableContent(retrievable) => retrievable.aliasPaths
-        case _ => None
-      }
-    }.getOrElse(Seq.empty)
+    def getPaths(maybeAliases: Option[Seq[AliasPath]]): Seq[String] = {
+      maybeAliases.fold(Seq.empty[String]) { _.map(_.path) }
+    }
+    event.payload.fold(Seq.empty[String]) {
+      case EventPayload.DeletedContent(deleted) => getPaths(deleted.aliasPaths)
+      case EventPayload.Content(content) => getPaths(content.aliasPaths)
+      case EventPayload.RetrievableContent(retrievable) => getPaths(retrievable.aliasPaths)
+      case _ => Seq.empty[String]
+    }
   }
 
   private def extractUpdateContentType(event: Event): Option[ContentType] = {
