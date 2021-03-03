@@ -7,7 +7,6 @@ import com.gu.crier.model.event.v1._
 import com.gu.thrift.serializer._
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone.UTC
-import org.joda.time.format.ISODateTimeFormat
 import org.scalatest.{ MustMatchers, OneInstancePerTest, WordSpecLike }
 
 import java.nio.ByteBuffer
@@ -16,9 +15,10 @@ import scala.util.Success
 class CrierDeserializerSpec extends WordSpecLike with MustMatchers with OneInstancePerTest {
   val dt1: DateTime = DateTime.now().minusDays(3)
   val dt2: DateTime = DateTime.now().minusDays(2)
-  val iso1: String = dt1.toString(ISODateTimeFormat.dateOptionalTimeParser.withZone(UTC))
-  val iso2: String = dt2.toString(ISODateTimeFormat.dateOptionalTimeParser.withZone(UTC))
-  val fakeAliasPaths: Seq[AliasPath] = Seq(AliasPath("123", CapiDateTime(dt1.getMillis, iso1)), AliasPath("abc", CapiDateTime(dt2.getMillis, iso2)))
+  val fakeAliasPaths: Seq[AliasPath] = Seq(
+    AliasPath("123", CapiDateTime(dt1.getMillis, dt1.withZone(UTC).toString())),
+    AliasPath("abc", CapiDateTime(dt2.getMillis, dt2.withZone(UTC).toString()))
+  )
 
   "Deserializer must" must {
     val event = Event(
