@@ -13,9 +13,9 @@ import java.nio.ByteBuffer
 import scala.util.Success
 
 class CrierDeserializerSpec extends WordSpecLike with MustMatchers with OneInstancePerTest {
-  val dt1: DateTime = DateTime.now().minusDays(3)
-  val dt2: DateTime = DateTime.now().minusDays(2)
-  val fakeAliasPaths: Seq[AliasPath] = Seq(
+  val dt1 = DateTime.now().minusDays(3)
+  val dt2 = DateTime.now().minusDays(2)
+  val fakeAliasPaths = Seq(
     AliasPath("123", CapiDateTime(dt1.getMillis, dt1.withZone(UTC).toString())),
     AliasPath("abc", CapiDateTime(dt2.getMillis, dt2.withZone(UTC).toString()))
   )
