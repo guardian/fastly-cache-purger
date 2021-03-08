@@ -4,13 +4,9 @@ import com.gu.crier.model.event.v1.Event
 
 object CrierEventProcessor {
 
-  def process(crierEvents: Seq[Event])(purge: Event => Boolean): Seq[Event] = {
-    val successfulPurges = crierEvents.flatMap { event =>
-      Some(event).filter(purge)
-    }
-
-    val purgedCount: Int = successfulPurges.size
-    println(s"Successfully purged $purgedCount pieces of content")
+  def process(crierEvents: Seq[Event])(purge: Event => Option[Decache]): Seq[Decache] = {
+    val successfulPurges = crierEvents.map(purge).flatten
+    println(s"Successfully purged ${successfulPurges.size} pieces of content")
     successfulPurges
   }
 

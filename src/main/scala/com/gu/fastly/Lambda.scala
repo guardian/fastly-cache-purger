@@ -1,7 +1,7 @@
 package com.gu.fastly
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
-import com.amazonaws.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataRequest, StandardUnit}
+import com.amazonaws.services.cloudwatch.model.{ Dimension, MetricDatum, PutMetricDataRequest, StandardUnit }
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.lambda.runtime.events.KinesisEvent
@@ -24,7 +24,7 @@ class Lambda {
   private val cloudWatchClient = AmazonCloudWatchClientBuilder.defaultClient
   private val snsClient = AmazonSNSClientBuilder.defaultClient
 
-  private def raiseAllThePurges(event: Event): Boolean = {
+  private def raiseAllThePurges(event: Event): Option[Decache] = {
     // For a given content type event purge all of the paths associated with it.
     // Use a Fastly Hard purge if the event is a delete.
 
@@ -45,29 +45,31 @@ class Lambda {
 
     val pathsToPurge = Seq(event.payloadId) ++ extractAliasPaths(event)
 
-    pathsToPurge.flatMap { path =>
+    val wasSuccessful: Boolean = pathsToPurge.flatMap { path =>
       purgesToPerform.map(purge => purge(path))
     }.forall(_ == true)
+
+    if (wasSuccessful) {
+      Some(Decache(eventType = event.eventType, paths = pathsToPurge, contentType = contentType))
+    } else {
+      None
+    }
   }
 
-  private def makeContentDecachedEventsFromCrierEvent(crierEvent: com.gu.crier.model.event.v1.Event): Seq[ContentDecachedEvent] = {
+  private def makeContentDecachedEventsFromDecache(decache: Decache): Seq[ContentDecachedEvent] = {
     // if an update or delete from Crier features a content item with
     // aliasPaths, we must raise de-cache events for the current path and
     // all aliases
-    val fastlyEventType = crierEvent.eventType match {
+    val fastlyEventType = decache.eventType match {
       case EventType.Delete => com.gu.fastly.model.event.v1.EventType.Delete
       case _ => com.gu.fastly.model.event.v1.EventType.Update
     }
 
-    // Content type and alias path extraction are done upstream and can be deduplicated in the future
-    val contentType = extractUpdateContentType(crierEvent)
-    val eventPaths = Seq(crierEvent.payloadId) ++ extractAliasPaths(crierEvent)
-
-    eventPaths.map { path =>
+    decache.paths.map { path =>
       ContentDecachedEvent(
         path,
         fastlyEventType,
-        contentType
+        decache.contentType
       )
     }
   }
@@ -79,26 +81,23 @@ class Lambda {
     println(s"Processing ${userRecords.size} records ...")
     val events = CrierEventDeserializer.deserializeEvents(userRecords.asScala)
 
-    val successfulPurges = CrierEventProcessor.process(events) { event =>
+    val successfulContentDecaches = CrierEventProcessor.process(events) { event =>
       event.itemType match {
         case ItemType.Content =>
           raiseAllThePurges(event)
         case _ =>
           // for now we only send purges for content, so ignore any other events
-          false
+          None
       }
     }
 
     // Post decache actions
-    // TODO At this point we should be talking about successfully purged paths not crier events.
     // We should be talking about a list of post purge actions to be performing on these path
-    // rather than these 2 distinct blocks of code
 
     // Purge AMP pages
-    successfulPurges.foreach { crierEvent =>
-      if (crierEvent.itemType == ItemType.Content && crierEvent.eventType == EventType.Delete) {
-        val eventPaths = Seq(crierEvent.payloadId) ++ extractAliasPaths(crierEvent)
-        eventPaths.foreach { path =>
+    successfulContentDecaches.foreach { decache =>
+      if (decache.eventType == EventType.Delete) {
+        decache.paths.foreach { path =>
           AmpFlusher.sendAmpDeleteRequest(path)
         }
       }
@@ -109,9 +108,9 @@ class Lambda {
     //
     // Now we can notify consumers that listen for successful de-cache events by sending
     // com.gu.crier.model.event.v1.Event events thrift serialized and base64 encoded
-    successfulPurges.foreach { crierEvent =>
+    successfulContentDecaches.foreach { decache =>
       try {
-        makeContentDecachedEventsFromCrierEvent(crierEvent).map { decachedEvent =>
+        makeContentDecachedEventsFromDecache(decache).map { decachedEvent =>
           val publishRequest = new PublishRequest()
           publishRequest.setTopicArn(config.decachedContentTopic)
           publishRequest.setMessage(ContentDecachedEventSerializer.serialize(decachedEvent))
@@ -226,3 +225,5 @@ class Lambda {
   }
 
 }
+
+case class Decache(eventType: EventType, paths: Seq[String], contentType: Option[ContentType])
