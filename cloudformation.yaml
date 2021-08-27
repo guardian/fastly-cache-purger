@@ -40,6 +40,7 @@ Resources:
       MemorySize: 512
       Timeout: 30
       Role: !GetAtt LambdaRole.Arn
+      ReservedConcurrentExecutions: 10
       Tags:
         - Key: Stack
           Value: !Ref Stack

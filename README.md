@@ -35,9 +35,13 @@ Fastly decaches may take time to propagate.
 When creating your SQS queue you may wish to add a delay to account for this propagation delay.
 
 
+## Lambda concurrency
 
+Lambdas in the same account default to sharing a fixed concurrency pool.
 
+To protect this Lambda from other rouge Lambdas consuming all the available shared concurrency we  set `Reserved concurrency` in the AWS console.
 
+This value should be set to at least the number of Kinesis trigger shards.
 
 
 
