@@ -13,6 +13,7 @@ import com.gu.fastly.model.event.v1.ContentDecachedEvent
 import com.gu.googleamp.AmpFlusher
 import okhttp3._
 import org.apache.commons.codec.digest.DigestUtils
+import org.joda.time.DateTime
 
 import scala.collection.JavaConverters._
 
@@ -65,11 +66,14 @@ class Lambda {
       case _ => com.gu.fastly.model.event.v1.EventType.Update
     }
 
+    // This timestamp is intended to approximates when the decache occurred rather than when it was requested
+    val decacheEventPublished = DateTime.now.getMillis
     decache.paths.map { path =>
       ContentDecachedEvent(
         path,
         fastlyEventType,
-        decache.contentType)
+        decache.contentType,
+        Some(decacheEventPublished))
     }
   }
 
@@ -129,8 +133,14 @@ class Lambda {
     RequestBody.create(MediaType.parse("application/json; charset=utf-8"), "")
 
   private sealed trait PurgeType
-  private object Soft extends PurgeType { override def toString = "soft" }
-  private object Hard extends PurgeType { override def toString = "hard" }
+
+  private object Soft extends PurgeType {
+    override def toString = "soft"
+  }
+
+  private object Hard extends PurgeType {
+    override def toString = "hard"
+  }
 
   def makeMapiSurrogateKey(contentId: String): String = s"Item/$contentId"
 
@@ -174,8 +184,11 @@ class Lambda {
 
   private def extractAliasPaths(event: Event): Seq[String] = {
     def getPaths(maybeAliases: Option[Seq[AliasPath]]): Seq[String] = {
-      maybeAliases.fold(Seq.empty[String]) { _.map(_.path) }
+      maybeAliases.fold(Seq.empty[String]) {
+        _.map(_.path)
+      }
     }
+
     event.payload.fold(Seq.empty[String]) {
       case EventPayload.DeletedContent(deleted) => getPaths(deleted.aliasPaths)
       case EventPayload.Content(content) => getPaths(content.aliasPaths)

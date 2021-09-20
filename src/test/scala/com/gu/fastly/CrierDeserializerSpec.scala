@@ -17,8 +17,7 @@ class CrierDeserializerSpec extends WordSpecLike with MustMatchers with OneInsta
   val dt2 = DateTime.now().minusDays(2)
   val fakeAliasPaths = Seq(
     AliasPath("123", CapiDateTime(dt1.getMillis, dt1.withZone(UTC).toString())),
-    AliasPath("abc", CapiDateTime(dt2.getMillis, dt2.withZone(UTC).toString()))
-  )
+    AliasPath("abc", CapiDateTime(dt2.getMillis, dt2.withZone(UTC).toString())))
 
   "Deserializer must" must {
     val event = Event(
@@ -32,9 +31,7 @@ class CrierDeserializerSpec extends WordSpecLike with MustMatchers with OneInsta
         lastModifiedDate = Some(8888888888L),
         internalRevision = Some(444444),
         contentType = Some(Article),
-        aliasPaths = Some(fakeAliasPaths)
-      )))
-    )
+        aliasPaths = Some(fakeAliasPaths)))))
 
     "properly deserialize a compressed event" in {
       val bytes = ThriftSerializer.serializeToBytes(event, Some(ZstdType), None)
