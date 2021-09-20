@@ -69,8 +69,7 @@ class Lambda {
       ContentDecachedEvent(
         path,
         fastlyEventType,
-        decache.contentType
-      )
+        decache.contentType)
     }
   }
 
