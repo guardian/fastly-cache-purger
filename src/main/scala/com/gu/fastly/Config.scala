@@ -12,8 +12,7 @@ case class Config(
   fastlyDotcomApiKey: String,
   fastlyMapiApiKey: String,
   decachedContentTopic: String,
-  ampFlusherPrivateKey: Array[Byte]
-)
+  ampFlusherPrivateKey: Array[Byte])
 
 object Config {
 
@@ -41,8 +40,7 @@ object Config {
       fastlyDotcomApiKey,
       fastlyMapiApiKey,
       decachedContentTopic,
-      getAmpFlusherPrivateKey()
-    )
+      getAmpFlusherPrivateKey())
   }
 
   private def loadProperties(bucket: String, key: String): Try[Properties] = {
