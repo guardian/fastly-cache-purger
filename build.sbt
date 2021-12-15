@@ -6,7 +6,7 @@ scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
 val awsClientVersion = "1.11.918"
 val circeVersion = "0.12.3"
-val Log4jVersion = "2.10.0"
+val Log4jVersion = "2.16.0"
 
 libraryDependencies ++= Seq(
   "com.amazonaws" % "amazon-kinesis-client" % "1.9.1",
