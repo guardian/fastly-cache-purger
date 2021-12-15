@@ -33,9 +33,6 @@ Resources:
   Lambda:
     Type: AWS::Lambda::Function
     Properties:
-      Environment:
-        Variables:
-          JAVA_TOOL_OPTIONS: -Dlog4j2.formatMsgNoLookups=true
       FunctionName: !Sub "${App}-${Stage}"
       Description: Fastly cache purger
       Runtime: java8
