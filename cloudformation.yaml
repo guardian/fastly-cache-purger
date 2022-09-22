@@ -28,6 +28,15 @@ Parameters:
   KinesisStream:
     Description: Name of the crier kinesis stream
     Type: String
+  StreamEFOConsumer:
+    Description: Name of the Enhanced Fan Out consumer for the kinesis (firehose) stream
+    Type: String
+
+Conditions:
+  IsProd:
+    !Equals
+    - !Ref Stage
+    - PROD
 
 Resources:
   Lambda:
@@ -55,7 +64,11 @@ Resources:
     Type: AWS::Lambda::EventSourceMapping
     Properties:
       BatchSize: 1
-      EventSourceArn: !Sub "arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${KinesisStream}"
+      EventSourceArn:
+        !If
+        - IsProd
+        - !Sub "arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${KinesisStream}/consumer/${StreamEFOConsumer}"
+        - !Sub "arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${KinesisStream}"
       FunctionName: !Ref Lambda
       StartingPosition: TRIM_HORIZON
   LambdaRole:
