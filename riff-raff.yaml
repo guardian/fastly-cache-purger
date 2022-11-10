@@ -8,7 +8,7 @@ deployments:
   fastly-cache-purger:
     type: aws-lambda
     parameters:
-      bucket: content-api-dist
+      bucketSsmLookup: true
       functionNames: [fastly-cache-purger-]
       fileName: fastly-cache-purger.zip
       prefixStack: false
