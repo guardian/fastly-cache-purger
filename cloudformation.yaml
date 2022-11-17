@@ -31,6 +31,9 @@ Parameters:
   StreamEFOConsumer:
     Description: Name of the Enhanced Fan Out consumer for the kinesis (firehose) stream
     Type: String
+  AlarmTopic:
+    Description: 'A SNS topic ARN for Cloudwatch alerts'
+    Type: String
 
 Conditions:
   IsProd:
@@ -112,3 +115,22 @@ Resources:
     Properties:
       TopicName: !Sub "${App}-${Stage}-decached"
       DisplayName: !Sub '${App}-${Stage}-Decached'
+  IteratorAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${Stack}-${Stage}-iterator-age-alarm
+      AlarmDescription: 'Fastly Cache purger is not keeping up with the Firehose.'
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref Lambda
+      MetricName: IteratorAge
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 180000
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !If [ IsProd, !Ref AlarmTopic, !Ref "AWS::NoValue" ]
+      InsufficientDataActions:
+        - !If [ IsProd, !Ref AlarmTopic, !Ref "AWS::NoValue" ]
