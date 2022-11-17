@@ -31,9 +31,10 @@ Parameters:
   StreamEFOConsumer:
     Description: Name of the Enhanced Fan Out consumer for the kinesis (firehose) stream
     Type: String
-  AlarmTopic:
-    Description: 'A SNS topic ARN for Cloudwatch alerts'
-    Type: String
+  AlarmTopicSSM:
+    Description: 'Pointer to an SNS topic ARN for Cloudwatch alerts'
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /account/content-api-common/alarms/urgent-alarm-topic
 
 Conditions:
   IsProd:
@@ -131,6 +132,6 @@ Resources:
       Threshold: 180000
       ComparisonOperator: GreaterThanThreshold
       AlarmActions:
-        - !If [ IsProd, !Ref AlarmTopic, !Ref "AWS::NoValue" ]
+        - !If [ IsProd, !Ref AlarmTopicSSM, !Ref "AWS::NoValue" ]
       InsufficientDataActions:
-        - !If [ IsProd, !Ref AlarmTopic, !Ref "AWS::NoValue" ]
+        - !If [ IsProd, !Ref AlarmTopicSSM, !Ref "AWS::NoValue" ]
