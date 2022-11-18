@@ -50,7 +50,7 @@ Resources:
       Description: Fastly cache purger
       Runtime: java8
       Handler: com.gu.fastly.Lambda::handle
-      MemorySize: 512
+      MemorySize: 768
       Timeout: 30
       Role: !GetAtt LambdaRole.Arn
       ReservedConcurrentExecutions: 10
