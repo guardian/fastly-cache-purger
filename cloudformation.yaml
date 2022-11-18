@@ -50,7 +50,7 @@ Resources:
       Description: Fastly cache purger
       Runtime: java8
       Handler: com.gu.fastly.Lambda::handle
-      MemorySize: 512
+      MemorySize: 768
       Timeout: 30
       Role: !GetAtt LambdaRole.Arn
       ReservedConcurrentExecutions: 10
@@ -60,7 +60,7 @@ Resources:
         - Key: Stage
           Value: !Ref Stage
         - Key: App
-          Value: !Ref App
+          Value: !Ref App]
       Code:
         S3Bucket: !Ref DeployBucket
         S3Key: !Sub ${Stack}/${Stage}/${App}/${App}.zip
