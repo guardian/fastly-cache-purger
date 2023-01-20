@@ -1,6 +1,6 @@
 organization := "com.gu"
 description := "Lambda for purging Fastly cache based on Crier events"
-scalaVersion := "2.12.8"
+scalaVersion := "2.12.10"
 name := "fastly-cache-purger"
 scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
@@ -17,7 +17,7 @@ libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-java-sdk-sns" % awsClientVersion,
   "com.squareup.okhttp3" % "okhttp" % "3.2.0",
   "com.gu" %% "content-api-models-scala" % "17.1.1",
-  "com.gu" %% "thrift-serializer" % "4.0.0",
+  "com.gu" %% "thrift-serializer" % "5.0.2",
   "org.apache.logging.log4j" % "log4j-api" % Log4jVersion,
   "org.apache.logging.log4j" % "log4j-core" % Log4jVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % "3.7.2",
