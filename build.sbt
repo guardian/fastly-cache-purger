@@ -20,6 +20,7 @@ libraryDependencies ++= Seq(
   "com.gu" %% "thrift-serializer" % "5.0.2",
   "org.apache.logging.log4j" % "log4j-api" % Log4jVersion,
   "org.apache.logging.log4j" % "log4j-core" % Log4jVersion,
+  "org.apache.logging.log4j" % "log4j-slf4j-impl" % Log4jVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
   "net.logstash.logback" % "logstash-logback-encoder" % "7.3",
   "io.circe" %% "circe-core" % circeVersion,
