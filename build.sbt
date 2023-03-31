@@ -9,7 +9,7 @@ val circeVersion = "0.12.3"
 val Log4jVersion = "2.17.1"
 
 libraryDependencies ++= Seq(
-  "com.amazonaws" % "amazon-kinesis-client" % "1.14.9",
+  "com.amazonaws" % "amazon-kinesis-client" % "1.14.10",
   "com.amazonaws" % "aws-lambda-java-core" % "1.2.0",
   "com.amazonaws" % "aws-lambda-java-events" % "2.1.0",
   "com.amazonaws" % "aws-java-sdk-cloudwatch" % awsClientVersion,
@@ -30,10 +30,10 @@ libraryDependencies ++= Seq(
 
 enablePlugins(RiffRaffArtifact, JavaAppPackaging)
 
-topLevelDirectory in Universal := None
-packageName in Universal := normalizedName.value
+Universal / topLevelDirectory := None
+Universal / packageName := normalizedName.value
 
-riffRaffPackageType := (packageBin in Universal).value
+riffRaffPackageType := (Universal / packageBin).value
 riffRaffUploadArtifactBucket := Option("riffraff-artifact")
 riffRaffUploadManifestBucket := Option("riffraff-builds")
 riffRaffManifestProjectName := s"Content Platforms::${name.value}"
