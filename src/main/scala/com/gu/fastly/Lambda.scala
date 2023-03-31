@@ -130,7 +130,7 @@ class Lambda {
 
   // OkHttp requires a media type even for an empty POST body
   private val EmptyJsonBody: RequestBody =
-    RequestBody.create(MediaType.parse("application/json; charset=utf-8"), "")
+    RequestBody.create("", MediaType.parse("application/json; charset=utf-8"))
 
   private sealed trait PurgeType
 
