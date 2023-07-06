@@ -28,12 +28,12 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.0.0" % "test"
 )
 
-enablePlugins(RiffRaffArtifact, JavaAppPackaging)
-
-Universal / topLevelDirectory := None
-Universal / packageName := normalizedName.value
-
-riffRaffPackageType := (Universal / packageBin).value
-riffRaffUploadArtifactBucket := Option("riffraff-artifact")
-riffRaffUploadManifestBucket := Option("riffraff-builds")
-riffRaffManifestProjectName := s"Content Platforms::${name.value}"
+ThisBuild / assemblyJarName := "fastly-cache-purger.jar"
+ThisBuild / assemblyMergeStrategy := {
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case "module-info.class" => MergeStrategy.discard
+  case x =>
+    val oldStrategy = (ThisBuild / assemblyMergeStrategy).value
+    oldStrategy(x)
+}
+Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-u", sys.env.getOrElse("SBT_JUNIT_OUTPUT", "junit"))
