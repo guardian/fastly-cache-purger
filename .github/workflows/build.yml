@@ -34,8 +34,6 @@ jobs:
         with:
           files: junit-tests/*.xml
 
-      - run: cp target/scala-2.12/fastly-cache-purger-assembly-0.1.0-SNAPSHOT.jar fastly-cache-purger.jar
-
       - uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           aws-region: eu-west-1
@@ -48,4 +46,4 @@ jobs:
           buildNumberOffset: 252
           contentDirectories: |
             fastly-cache-purger:
-              - fastly-cache-purger.jar
+              - target/scala-2.12/fastly-cache-purger.jar
