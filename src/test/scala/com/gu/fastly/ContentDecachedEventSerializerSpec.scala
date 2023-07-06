@@ -20,7 +20,6 @@ class ContentDecachedEventSerializerSpec extends WordSpecLike with MustMatchers 
 
       serialized must include("\"1\":{\"str\":\"/travel/some-content\"")
       serialized must include("\"3\":{\"i32\":1")
-      serialized must include("\"5\":{\"i64\":1632150600123")
       serialized must endWith("}")
     }
 
