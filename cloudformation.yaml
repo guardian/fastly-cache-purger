@@ -48,7 +48,7 @@ Resources:
     Properties:
       FunctionName: !Sub "${App}-${Stage}"
       Description: Fastly cache purger
-      Runtime: java8
+      Runtime: java11
       Handler: com.gu.fastly.Lambda::handle
       MemorySize: 768
       Timeout: 30
