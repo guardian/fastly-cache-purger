@@ -10,5 +10,5 @@ deployments:
     parameters:
       bucketSsmLookup: true
       functionNames: [fastly-cache-purger-]
-      fileName: fastly-cache-purger.zip
+      fileName: fastly-cache-purger.jar
       prefixStack: false
