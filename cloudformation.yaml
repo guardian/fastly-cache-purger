@@ -137,3 +137,11 @@ Resources:
         - !If [ IsProd, !Ref AlarmTopicSSM, !Ref "AWS::NoValue" ]
       InsufficientDataActions:
         - !If [ IsProd, !Ref AlarmTopicSSM, !Ref "AWS::NoValue" ]
+
+Outputs:
+  DecachedContentSNSTopicARN:
+    Description: ARN of the SNS DecachedContentTopic
+    Value:
+      Ref: DecachedContentTopic
+    Export:
+      Name: !Sub "${AWS::StackName}-DecachedContentSNSTopicARN"
