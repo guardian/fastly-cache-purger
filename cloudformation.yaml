@@ -35,6 +35,10 @@ Parameters:
     Description: 'Pointer to an SNS topic ARN for Cloudwatch alerts'
     Type: AWS::SSM::Parameter::Value<String>
     Default: /account/content-api-common/alarms/urgent-alarm-topic
+  OphanAccountID:
+    Description: 'AWS account/profile ID of Ophan'
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: OphanAccountID
 
 Conditions:
   IsProd:
@@ -118,6 +122,19 @@ Resources:
     Properties:
       TopicName: !Sub "${App}-${Stage}-decached"
       DisplayName: !Sub '${App}-${Stage}-Decached'
+  DecachedContentTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref DecachedContentTopic
+      PolicyDocument:
+        Statement:
+          - Sid: OphanAccount
+            Effect: Allow
+            Principal:
+              AWS: !Ref 'OphanAccountID'
+            Action: "sns:Subscribe"
+            Resource: !Ref 'DecachedContentTopic'
   IteratorAgeAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
