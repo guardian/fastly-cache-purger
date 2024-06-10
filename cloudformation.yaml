@@ -147,7 +147,7 @@ Resources:
       MetricName: IteratorAge
       Statistic: Maximum
       Period: 60
-      EvaluationPeriods: 1
+      EvaluationPeriods: 5
       Threshold: 180000
       ComparisonOperator: GreaterThanThreshold
       AlarmActions:
