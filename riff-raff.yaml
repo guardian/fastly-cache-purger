@@ -4,6 +4,9 @@ stacks:
 regions:
   - eu-west-1
 
+allowedStages:
+  - PROD
+
 deployments:
   fastly-cache-purger:
     type: aws-lambda
