@@ -25,10 +25,10 @@ jobs:
           java-version: 11
           cache: sbt
 
-      - name: Build and test
+      - name: Check formatting, run tests, build JAR
         env:
           SBT_JUNIT_OUTPUT: ./junit-tests
-        run: sbt 'test;assembly'
+        run: sbt 'scalafmtCheck; scalafmtSbtCheck; Test/scalafmtCheck; test; assembly'
 
       - uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()  #runs even if there is a test failure

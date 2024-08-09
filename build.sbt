@@ -33,9 +33,13 @@ dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-core" % "2.15.4"
 ThisBuild / assemblyJarName := "fastly-cache-purger.jar"
 ThisBuild / assemblyMergeStrategy := {
   case PathList("META-INF", xs @ _*) => MergeStrategy.discard
-  case "module-info.class" => MergeStrategy.discard
+  case "module-info.class"           => MergeStrategy.discard
   case x =>
     val oldStrategy = (ThisBuild / assemblyMergeStrategy).value
     oldStrategy(x)
 }
-Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-u", sys.env.getOrElse("SBT_JUNIT_OUTPUT", "junit"))
+Test / testOptions += Tests.Argument(
+  TestFrameworks.ScalaTest,
+  "-u",
+  sys.env.getOrElse("SBT_JUNIT_OUTPUT", "junit")
+)

@@ -1,9 +1,12 @@
 package com.gu.fastly
 
 import org.joda.time.DateTime
-import org.scalatest.{ MustMatchers, OneInstancePerTest, WordSpecLike }
+import org.scalatest.{MustMatchers, OneInstancePerTest, WordSpecLike}
 
-class ContentDecachedEventSerializerSpec extends WordSpecLike with MustMatchers with OneInstancePerTest {
+class ContentDecachedEventSerializerSpec
+    extends WordSpecLike
+    with MustMatchers
+    with OneInstancePerTest {
 
   "Serializer must" must {
 
@@ -13,10 +16,13 @@ class ContentDecachedEventSerializerSpec extends WordSpecLike with MustMatchers 
         com.gu.fastly.model.event.v1.ContentDecachedEvent(
           contentPath = "/travel/some-content",
           eventType = com.gu.fastly.model.event.v1.EventType.Update,
-          contentType = Some(com.gu.contentapi.client.model.v1.ContentType.Liveblog),
-          eventPublished = Some(eventPublished.getMillis))
+          contentType =
+            Some(com.gu.contentapi.client.model.v1.ContentType.Liveblog),
+          eventPublished = Some(eventPublished.getMillis)
+        )
 
-      val serialized = ContentDecachedEventSerializer.serialize(contentDecachedEvent)
+      val serialized =
+        ContentDecachedEventSerializer.serialize(contentDecachedEvent)
 
       serialized must include("\"1\":{\"str\":\"/travel/some-content\"")
       serialized must include("\"3\":{\"i32\":1")

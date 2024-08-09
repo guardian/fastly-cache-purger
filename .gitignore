@@ -1,5 +1,7 @@
 .*
 !.gitignore
+!.scalafmt.conf
+!.git-blame-ignore-revs
 
 target/
 logs/
