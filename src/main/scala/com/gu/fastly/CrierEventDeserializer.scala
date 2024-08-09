@@ -6,7 +6,7 @@ import com.gu.crier.model.event.v1.Event
 import com.gu.thrift.serializer.ThriftDeserializer
 
 import scala.collection.mutable
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 object CrierEventDeserializer {
 
@@ -16,7 +16,9 @@ object CrierEventDeserializer {
         case Success(event) =>
           Some(event)
         case Failure(error) =>
-          println("Failed to deserialize Crier event from Kinesis record. Skipping.")
+          println(
+            "Failed to deserialize Crier event from Kinesis record. Skipping."
+          )
           None
       }
     }
