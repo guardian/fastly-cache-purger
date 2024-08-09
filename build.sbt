@@ -15,6 +15,7 @@ libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-java-sdk-cloudwatch" % awsClientVersion,
   "com.amazonaws" % "aws-java-sdk-s3" % awsClientVersion,
   "com.amazonaws" % "aws-java-sdk-sns" % awsClientVersion,
+  "com.fasterxml.jackson.core" % "jackson-core" % "2.15.4",
   "com.squareup.okhttp3" % "okhttp" % "4.10.0",
   "com.gu" %% "content-api-models-scala" % "17.5.1",
   "com.gu" %% "thrift-serializer" % "5.0.2",
