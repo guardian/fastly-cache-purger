@@ -43,6 +43,8 @@ To protect this Lambda from other rouge Lambdas consuming all the available shar
 
 This value should be set to at least the number of Kinesis trigger shards.
 
+## Deployment
 
+This app is currently only deployed to PROD: there is no CODE stack. Also, [the Riff Raff configuration](./riff-raff.yaml) is only set to deploy the lambda updates: it doesn’t update the cloudformation.
 
-
+There is also no continuous deployment configured in Riff Raff for this app at the moment: since one must manually update the cloudformation, it’s probably safest to let people deploy when they’re ready, so that they can make sure to apply [the cloudformation](./cloudformation.yaml) first.
