@@ -9,7 +9,7 @@ val circeVersion = "0.14.5"
 val Log4jVersion = "2.20.0"
 
 libraryDependencies ++= Seq(
-  "com.amazonaws" % "amazon-kinesis-client" % "1.14.10" exclude("com.fasterxml.jackson.core", "jackson-core") exclude("com.google.protobuf", "protobuf-java"),
+  "com.amazonaws" % "amazon-kinesis-client" % "1.15.2" exclude("com.google.protobuf", "protobuf-java"),
   "com.amazonaws" % "aws-lambda-java-core" % "1.2.2",
   "com.amazonaws" % "aws-lambda-java-events" % "2.1.0",
   "com.amazonaws" % "aws-java-sdk-cloudwatch" % awsClientVersion,
@@ -26,8 +26,7 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser" % circeVersion,
   "org.scalatest" %% "scalatest" % "3.0.0" % "test",
-  "com.fasterxml.jackson.core" % "jackson-core" % "2.15.0",
-  "com.google.protobuf" % "protobuf-java" % "3.25.5"
+  "com.google.protobuf" % "protobuf-java" % "4.28.2"
 )
 
 ThisBuild / assemblyJarName := "fastly-cache-purger.jar"
