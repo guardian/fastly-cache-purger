@@ -1,11 +1,13 @@
 package com.gu.fastly
 
 import org.joda.time.DateTime
-import org.scalatest.{MustMatchers, OneInstancePerTest, WordSpecLike}
+import org.scalatest.OneInstancePerTest
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class ContentDecachedEventSerializerSpec
-    extends WordSpecLike
-    with MustMatchers
+    extends AnyWordSpec
+    with Matchers
     with OneInstancePerTest {
 
   "Serializer must" must {

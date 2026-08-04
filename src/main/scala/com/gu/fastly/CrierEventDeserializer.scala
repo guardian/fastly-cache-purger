@@ -11,7 +11,7 @@ import scala.util.{Failure, Success, Try}
 object CrierEventDeserializer {
 
   def deserializeEvents(scala: mutable.Buffer[UserRecord]): Seq[Event] = {
-    scala.flatMap { record =>
+    scala.toSeq.flatMap { record =>
       CrierEventDeserializer.eventFromRecord(record) match {
         case Success(event) =>
           Some(event)

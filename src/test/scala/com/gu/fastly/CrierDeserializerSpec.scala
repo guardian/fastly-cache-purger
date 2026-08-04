@@ -1,20 +1,21 @@
 package com.gu.fastly
 
 import com.amazonaws.services.kinesis.model.Record
-import com.gu.contentapi.client.model.v1.{AliasPath, CapiDateTime}
 import com.gu.contentapi.client.model.v1.ContentType.Article
+import com.gu.contentapi.client.model.v1.{AliasPath, CapiDateTime}
 import com.gu.crier.model.event.v1._
 import com.gu.thrift.serializer._
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone.UTC
-import org.scalatest.{MustMatchers, OneInstancePerTest, WordSpecLike}
+import org.scalatest.OneInstancePerTest
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-import java.nio.ByteBuffer
 import scala.util.Success
 
 class CrierDeserializerSpec
-    extends WordSpecLike
-    with MustMatchers
+    extends AnyWordSpec
+    with Matchers
     with OneInstancePerTest {
   val dt1 = DateTime.now().minusDays(3)
   val dt2 = DateTime.now().minusDays(2)
