@@ -24,7 +24,7 @@ libraryDependencies ++= Seq(
   "org.apache.logging.log4j" % "log4j-api" % Log4jVersion,
   "org.apache.logging.log4j" % "log4j-core" % Log4jVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
-  "net.logstash.logback" % "logstash-logback-encoder" % "7.3",
+  "net.logstash.logback" % "logstash-logback-encoder" % "7.4",
   "io.circe" %% "circe-core" % circeVersion,
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser" % circeVersion,
