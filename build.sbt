@@ -23,13 +23,13 @@ libraryDependencies ++= Seq(
   "com.gu" %% "thrift-serializer" % "5.0.2",
   "org.apache.logging.log4j" % "log4j-api" % Log4jVersion,
   "org.apache.logging.log4j" % "log4j-core" % Log4jVersion,
-  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.6",
   "net.logstash.logback" % "logstash-logback-encoder" % "7.3",
   "io.circe" %% "circe-core" % circeVersion,
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser" % circeVersion,
   "org.scalatest" %% "scalatest" % "3.2.20" % Test,
-  "com.google.protobuf" % "protobuf-java" % "4.28.2"
+  "com.google.protobuf" % "protobuf-java" % "4.28.3"
 )
 
 dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-core" % "2.15.4"
