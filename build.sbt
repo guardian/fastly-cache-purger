@@ -29,7 +29,7 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser" % circeVersion,
   "org.scalatest" %% "scalatest" % "3.2.20" % Test,
-  "com.google.protobuf" % "protobuf-java" % "4.28.2"
+  "com.google.protobuf" % "protobuf-java" % "4.28.3"
 )
 
 dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-core" % "2.15.4"
