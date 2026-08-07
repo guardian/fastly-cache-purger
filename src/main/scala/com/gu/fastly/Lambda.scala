@@ -243,11 +243,8 @@ class Lambda {
   }
 
   private def extractAliasPaths(event: Event): Seq[String] = {
-    def getPaths(maybeAliases: Option[Seq[AliasPath]]): Seq[String] = {
-      maybeAliases.fold(Seq.empty[String]) {
-        _.map(_.path)
-      }
-    }
+    def getPaths(maybeAliases: Option[collection.Seq[AliasPath]]): Seq[String] =
+      maybeAliases.fold(Seq.empty[String])(_.toSeq.map(_.path))
 
     event.payload.fold(Seq.empty[String]) {
       case EventPayload.DeletedContent(deleted) => getPaths(deleted.aliasPaths)

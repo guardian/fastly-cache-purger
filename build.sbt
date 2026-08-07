@@ -1,6 +1,6 @@
 organization := "com.gu"
 description := "Lambda for purging Fastly cache based on Crier events"
-scalaVersion := "2.12.10"
+scalaVersion := "2.13.18"
 name := "fastly-cache-purger"
 scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
@@ -28,7 +28,7 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-core" % circeVersion,
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser" % circeVersion,
-  "org.scalatest" %% "scalatest" % "3.0.0" % "test",
+  "org.scalatest" %% "scalatest" % "3.2.20" % Test,
   "com.google.protobuf" % "protobuf-java" % "4.28.2"
 )
 

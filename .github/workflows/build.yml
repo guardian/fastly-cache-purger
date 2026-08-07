@@ -39,4 +39,4 @@ jobs:
           buildNumberOffset: 252
           contentDirectories: |
             fastly-cache-purger:
-              - target/scala-2.12/fastly-cache-purger.jar
+              - target/scala-2.13/fastly-cache-purger.jar
