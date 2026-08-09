@@ -64,7 +64,8 @@ class Lambda {
       case Soft => Seq(dotcomAliasPurge, jsonAliasPurge, mapiAliasPurge)
     }
 
-    val pathsToPurge = Seq(event.payloadId) ++ extractAliasPaths(event)
+    val pathsToPurge = (Seq(event.payloadId) ++ extractAliasPaths(event))
+      .flatMap(path => Seq(path) ++ additionalPathsForPurge(path))
 
     val wasSuccessful: Boolean = pathsToPurge
       .flatMap { path =>
@@ -267,6 +268,10 @@ class Lambda {
       }
     }
   }
+
+  def additionalPathsForPurge(path: String): Seq[String] =
+    if (path.startsWith("email/")) Seq(s"$path/headline.txt")
+    else Seq.empty
 
   // Count the number of purge requests we are making
   private def sendPurgeCountMetric(contentType: Option[ContentType]): Unit = {
