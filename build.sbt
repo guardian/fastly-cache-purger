@@ -32,7 +32,7 @@ libraryDependencies ++= Seq(
   "com.google.protobuf" % "protobuf-java" % "4.28.2"
 )
 
-dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-core" % "2.15.4"
+dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-core" % "2.22.1"
 
 ThisBuild / assemblyJarName := "fastly-cache-purger.jar"
 ThisBuild / assemblyMergeStrategy := {
