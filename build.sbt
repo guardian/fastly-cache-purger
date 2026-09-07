@@ -4,17 +4,17 @@ scalaVersion := "2.13.18"
 name := "fastly-cache-purger"
 scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
-val awsClientVersion = "1.12.641"
+val awsClientVersion = "1.12.797"
 val circeVersion = "0.14.16"
 val Log4jVersion = "2.20.0"
 
 libraryDependencies ++= Seq(
-  "com.amazonaws" % "amazon-kinesis-client" % "1.15.2" exclude (
+  "com.amazonaws" % "amazon-kinesis-client" % "1.15.3" exclude (
     "com.google.protobuf",
     "protobuf-java"
   ),
-  "com.amazonaws" % "aws-lambda-java-core" % "1.2.2",
-  "com.amazonaws" % "aws-lambda-java-events" % "2.1.0",
+  "com.amazonaws" % "aws-lambda-java-core" % "1.2.3",
+  "com.amazonaws" % "aws-lambda-java-events" % "2.2.9",
   "com.amazonaws" % "aws-java-sdk-cloudwatch" % awsClientVersion,
   "com.amazonaws" % "aws-java-sdk-s3" % awsClientVersion,
   "com.amazonaws" % "aws-java-sdk-sns" % awsClientVersion,
