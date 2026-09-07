@@ -14,7 +14,7 @@ libraryDependencies ++= Seq(
     "protobuf-java"
   ),
   "com.amazonaws" % "aws-lambda-java-core" % "1.2.3",
-  "com.amazonaws" % "aws-lambda-java-events" % "2.1.0",
+  "com.amazonaws" % "aws-lambda-java-events" % "2.2.9",
   "com.amazonaws" % "aws-java-sdk-cloudwatch" % awsClientVersion,
   "com.amazonaws" % "aws-java-sdk-s3" % awsClientVersion,
   "com.amazonaws" % "aws-java-sdk-sns" % awsClientVersion,
