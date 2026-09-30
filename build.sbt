@@ -38,6 +38,8 @@ ThisBuild / assemblyJarName := "fastly-cache-purger.jar"
 ThisBuild / assemblyMergeStrategy := {
   case PathList("META-INF", xs @ _*) => MergeStrategy.discard
   case "module-info.class"           => MergeStrategy.discard
+  // Shipped by both httpclient 4 (AWS SDK) and httpclient5 (libthrift); same Mozilla format, either copy works
+  case PathList("mozilla", "public-suffix-list.txt") => MergeStrategy.first
   case x =>
     val oldStrategy = (ThisBuild / assemblyMergeStrategy).value
     oldStrategy(x)
