@@ -20,7 +20,7 @@ libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-java-sdk-sns" % awsClientVersion,
   "com.squareup.okhttp3" % "okhttp" % "4.10.0",
   "com.gu" %% "content-api-models-scala" % "17.5.1",
-  "com.gu" %% "thrift-serializer" % "5.0.2",
+  "com.gu" %% "thrift-serializer" % "5.0.8-PREVIEW.jmlibthrift-0240.2026-09-30T1141.b69d9973",
   "org.apache.logging.log4j" % "log4j-api" % Log4jVersion,
   "org.apache.logging.log4j" % "log4j-core" % Log4jVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
