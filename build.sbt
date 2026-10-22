@@ -20,7 +20,7 @@ libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-java-sdk-sns" % awsClientVersion,
   "com.squareup.okhttp3" % "okhttp" % "4.10.0",
   "com.gu" %% "content-api-models-scala" % "17.5.1",
-  "com.gu" %% "thrift-serializer" % "5.0.2",
+  "com.gu" %% "thrift-serializer" % "5.0.8",
   "org.apache.logging.log4j" % "log4j-api" % Log4jVersion,
   "org.apache.logging.log4j" % "log4j-core" % Log4jVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
@@ -38,6 +38,8 @@ ThisBuild / assemblyJarName := "fastly-cache-purger.jar"
 ThisBuild / assemblyMergeStrategy := {
   case PathList("META-INF", xs @ _*) => MergeStrategy.discard
   case "module-info.class"           => MergeStrategy.discard
+  // Shipped by both httpclient 4 (AWS SDK) and httpclient5 (libthrift); same Mozilla format, either copy works
+  case PathList("mozilla", "public-suffix-list.txt") => MergeStrategy.first
   case x =>
     val oldStrategy = (ThisBuild / assemblyMergeStrategy).value
     oldStrategy(x)
