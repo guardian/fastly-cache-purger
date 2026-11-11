@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: guardian/setup-scala@v1
+      - uses: guardian/setup-scala@v2
 
       - name: Check formatting, run tests, build JAR
         env:
