@@ -34,6 +34,11 @@ libraryDependencies ++= Seq(
 
 val jacksonVersion = "2.18.11"
 dependencyOverrides ++= Seq(
+  "org.apache.httpcomponents.client5" % "httpclient5" % "5.6.3",
+  "org.apache.httpcomponents.core5" % "httpcore5" % "5.4.3",
+  "org.apache.httpcomponents.core5" % "httpcore5-h2" % "5.4.3"
+)
+dependencyOverrides ++= Seq(
   "com.squareup.okio" % "okio" % "3.4.0",
   "com.squareup.okio" % "okio-jvm" % "3.4.0"
 )
