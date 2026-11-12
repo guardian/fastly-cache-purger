@@ -34,6 +34,10 @@ libraryDependencies ++= Seq(
 
 val jacksonVersion = "2.18.11"
 dependencyOverrides ++= Seq(
+  "com.squareup.okio" % "okio" % "3.4.0",
+  "com.squareup.okio" % "okio-jvm" % "3.4.0"
+)
+dependencyOverrides ++= Seq(
   "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
   "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonVersion,
