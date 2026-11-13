@@ -6,7 +6,7 @@ scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
 val awsClientVersion = "1.12.641"
 val circeVersion = "0.14.16"
-val Log4jVersion = "2.20.0"
+val Log4jVersion = "2.25.5"
 
 libraryDependencies ++= Seq(
   "com.amazonaws" % "amazon-kinesis-client" % "1.15.2" exclude (
@@ -32,7 +32,23 @@ libraryDependencies ++= Seq(
   "com.google.protobuf" % "protobuf-java" % "4.28.2"
 )
 
-dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-core" % "2.15.4"
+val jacksonVersion = "2.18.11"
+dependencyOverrides += "com.google.guava" % "guava" % "33.7.2-jre"
+dependencyOverrides ++= Seq(
+  "org.apache.httpcomponents.client5" % "httpclient5" % "5.6.3",
+  "org.apache.httpcomponents.core5" % "httpcore5" % "5.4.3",
+  "org.apache.httpcomponents.core5" % "httpcore5-h2" % "5.4.3"
+)
+dependencyOverrides ++= Seq(
+  "com.squareup.okio" % "okio" % "3.4.0",
+  "com.squareup.okio" % "okio-jvm" % "3.4.0"
+)
+dependencyOverrides ++= Seq(
+  "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
+  "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
+  "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonVersion,
+  "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % jacksonVersion
+)
 
 ThisBuild / assemblyJarName := "fastly-cache-purger.jar"
 ThisBuild / assemblyMergeStrategy := {
