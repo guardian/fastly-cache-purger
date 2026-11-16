@@ -32,7 +32,7 @@ libraryDependencies ++= Seq(
   "com.google.protobuf" % "protobuf-java" % "4.28.2"
 )
 
-val jacksonVersion = "2.18.11"
+val jacksonVersion = "2.18.12"
 dependencyOverrides += "com.google.guava" % "guava" % "33.7.2-jre"
 dependencyOverrides ++= Seq(
   "org.apache.httpcomponents.client5" % "httpclient5" % "5.6.3",
